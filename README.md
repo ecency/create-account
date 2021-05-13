@@ -7,4 +7,5 @@ Simply rename `config.example.js` to `config.js` and add account and relevant ac
 Run script every 5 minutes with cron task.
 
 `yarn`
+
 `node index.js`
