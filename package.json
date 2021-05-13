@@ -1,0 +1,17 @@
+{
+  "name": "create-account",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@hiveio/dhive": "^0.14.12",
+    "axios": "^0.19.2",
+    "md5": "^2.2.1",
+    "request": "^2.88.0"
+  }
+}
