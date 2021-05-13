@@ -6,7 +6,7 @@ const config = require('./config.js');
 
 const {creators, privateKeys, authCodes} = config;
 
-//connect to server which is connected to the network/production
+//connect to rpc
 const client = new dhive.Client(['https://rpc.ecency.com', 'https://api.hive.blog'], {
     timeout: 4000,
     failoverThreshold: 20,
@@ -28,7 +28,6 @@ pendingAccounts = async () => {
     console.log('UTC: ', new Date().toUTCString());
     const getPendingAccounts = () =>
         axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
-
     const pacs = await getPendingAccounts();
     //console.log('pending accounts', pacs);
     if (pacs && pacs.length>0) {
@@ -62,7 +61,7 @@ pendingAccounts = async () => {
 //create with RC function
 createAccount = async (user) => {
     let creator = "";
-    let ind = 0;
+    let ind = -1;
     let PKey = "";
     let acode = "";
 
@@ -76,82 +75,84 @@ createAccount = async (user) => {
             break;
         }
     }
-    creator = creators[ind];
-    PKey = privateKeys[ind];
-    acode = authCodes[ind];
-    
-    const username = user.username;
-    const update_code = user.update_code;
-    
-    //pub keys
-    const memoKey = user.memo;
+    if (ind !== -1) {
+        creator = creators[ind];
+        PKey = privateKeys[ind];
+        acode = authCodes[ind];
 
-    const ownerAuth = {
-        weight_threshold: 1,
-        account_auths: [],
-        key_auths: [[user.owner, 1]],
-    };
-    const activeAuth = {
-        weight_threshold: 1,
-        account_auths: [],
-        key_auths: [[user.active, 1]],
-    };
-    const postingAuth = {
-        weight_threshold: 1,
-        account_auths: [['ecency.app', 1]],
-        key_auths: [[user.posting, 1]],
-    };
+        const username = user.username;
+        const update_code = user.update_code;
 
-    //private active key of creator account
-    
-    const privateKey = dhive.PrivateKey.fromString(
-        PKey
-    );
+        //pub keys
+        const memoKey = user.memo;
 
-    let ops = [];
-   
-    //create operation to transmit
-    const create_op = [
-        'create_claimed_account',
-        {
-            creator: creator,
-            new_account_name: username,
-            owner: ownerAuth,
-            active: activeAuth,
-            posting: postingAuth,
-            memo_key: memoKey,
-            json_metadata: '',
-            extensions: [],
-        },
-    ];
-    ops.push(create_op);
-    console.log(`attempting to create account: ${username} with ${creator}`);
-    //broadcast operation to blockchain
-    client.broadcast.sendOperations(ops, privateKey).then(
-        function(result) {
-            if (result && result.block_num) {
-                confirmAccounts.push(username);
-                setTimeout(function(){
-                    axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
-                        {
-                            update_code: update_code,
-                            creator: acode
-                        }
-                    )
-                    .then(resp => {
-                        if (isEmpty(resp.data)) {
-                            console.log(`created account: ${username} with ${creator}`);
-                        }
-                    }).catch(e => {
-                        console.log(e);
-                    });    
-                }, 10000);
+        const ownerAuth = {
+            weight_threshold: 1,
+            account_auths: [],
+            key_auths: [[user.owner, 1]],
+        };
+        const activeAuth = {
+            weight_threshold: 1,
+            account_auths: [],
+            key_auths: [[user.active, 1]],
+        };
+        const postingAuth = {
+            weight_threshold: 1,
+            account_auths: [['ecency.app', 1]],
+            key_auths: [[user.posting, 1]],
+        };
+
+        //private active key of creator account
+
+        const privateKey = dhive.PrivateKey.fromString(
+            PKey
+        );
+
+        let ops = [];
+
+        //create operation to transmit
+        const create_op = [
+            'create_claimed_account',
+            {
+                creator: creator,
+                new_account_name: username,
+                owner: ownerAuth,
+                active: activeAuth,
+                posting: postingAuth,
+                memo_key: memoKey,
+                json_metadata: '',
+                extensions: [],
+            },
+        ];
+        ops.push(create_op);
+        console.log(`attempting to create account: ${username} with ${creator}`);
+        //broadcast operation to blockchain
+        client.broadcast.sendOperations(ops, privateKey).then(
+            function(result) {
+                if (result && result.block_num) {
+                    confirmAccounts.push(username);
+                    setTimeout(function(){
+                        axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
+                            {
+                                update_code: update_code,
+                                creator: acode
+                            }
+                        )
+                        .then(resp => {
+                            if (isEmpty(resp.data)) {
+                                console.log(`created account: ${username} with ${creator}`);
+                            }
+                        }).catch(e => {
+                            console.log(e);
+                        });
+                    }, 10000);
+                }
+            },
+            function(error) {
+                console.log(`error happened with ${username}`, error);
             }
-        },
-        function(error) {
-            console.log(`error happened with ${username}`, error);
-        }
-    );
+        );
+    }
 };
 
 pendingAccounts();
