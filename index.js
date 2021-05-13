@@ -1,6 +1,5 @@
 const dhive = require('@hiveio/dhive');
 const request = require("request");
-const md5 = require('md5');
 const axios = require('axios');
 
 const config = require('./config.js');
@@ -28,11 +27,7 @@ let confirmAccounts = [];
 pendingAccounts = async () => {
     console.log('UTC: ', new Date().toUTCString());
     const getPendingAccounts = () =>
-        axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`, {
-            headers: {
-                'User-Agent': 'EcencyMobile/3.0.0'
-            }
-          }).then(resp => resp.data);
+        axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
 
     const pacs = await getPendingAccounts();
     //console.log('pending accounts', pacs);
@@ -141,11 +136,6 @@ createAccount = async (user) => {
                         {
                             update_code: update_code,
                             creator: acode
-                        },
-                        {
-                            headers: {
-                                'User-Agent': 'EcencyMobile/3.0.0'
-                            }
                         }
                     )
                     .then(resp => {
