@@ -40,8 +40,11 @@ pendingAccounts = async () => {
                 console.log(`checking:`, accSearch);
 
                 if (_account.length == 0) {
-                    await createAccount(pacs[index]);
-                    await sleep(3000);
+                    let valid = await validateAccount(pacs[index]);
+                    if (valid) {
+                        await createAccount(pacs[index]);
+                        await sleep(3000);    
+                    }
                 } else {
                     if (_account.length > 0) {
                         console.log(`error happened, ${accSearch} exist`);
@@ -154,5 +157,34 @@ createAccount = async (user) => {
         );
     }
 };
+
+validateAccount = async(user) => {
+    const [account] = await client.database.call('get_accounts', [
+        [user.username]
+    ]);
+
+    if (account) {
+        // account already exist
+        let inx = creators.indexOf(account.recovery_account);
+        if (inx !== -1) {
+            axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
+                {
+                    update_code: user.update_code,
+                    creator: authCodes[inx]
+                }
+            )
+            .then(resp => {
+                if (isEmpty(resp.data)) {
+                    console.log(`validated account: ${user.username}`);
+                }
+            }).catch(e => {
+                console.log(e);
+            });
+        }
+        return false;
+    } else {
+        return true;
+    }
+}
 
 pendingAccounts();
