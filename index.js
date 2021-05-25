@@ -145,7 +145,7 @@ createAccount = async (user) => {
                         }).catch(e => {
                             console.log(e);
                         });
-                    }, 10000);
+                    }, 30000);
                 }
             },
             function(error) {
