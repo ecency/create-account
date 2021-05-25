@@ -34,21 +34,15 @@ pendingAccounts = async () => {
         for (let index = 0; index < pacs.length; index++) {
             const accSearch = pacs[index].username;
             if (accSearch.length > 2) {
-                const _account = await client.database.call('get_accounts', [
-                    [accSearch],
-                ]);
                 console.log(`checking:`, accSearch);
-
-                if (_account.length == 0) {
-                    let valid = await validateAccount(pacs[index]);
-                    if (valid) {
-                        await createAccount(pacs[index]);
-                        await sleep(3000);    
-                    }
-                } else {
-                    if (_account.length > 0) {
-                        console.log(`error happened, ${accSearch} exist`);
-                    }
+                let valid = await validateAccount(pacs[index]);
+            
+                if (valid) {
+                    await createAccount(pacs[index]);
+                    await sleep(3000);    
+                }
+                else {
+                    console.log(`error happened, ${accSearch} exist`);
                 }
             }    
         }
