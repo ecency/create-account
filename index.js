@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const config = require('./config.js');
 
-const {creators, privateKeys, authCodes} = config;
+const {creators, privateKeys, authCodes, delegate} = config;
 
 //connect to rpc
 const client = new dhive.Client(['https://rpc.ecency.com', 'https://api.hive.blog'], {
@@ -33,10 +33,9 @@ pendingAccounts = async () => {
     if (pacs && pacs.length>0) {
         for (let index = 0; index < pacs.length; index++) {
             const accSearch = pacs[index].username;
+            let valid = await validateAccount(pacs[index]);
             if (accSearch.length > 2) {
                 console.log(`checking:`, accSearch);
-                let valid = await validateAccount(pacs[index]);
-            
                 if (valid) {
                     await createAccount(pacs[index]);
                     await sleep(3000);    
@@ -122,6 +121,17 @@ createAccount = async (user) => {
             },
         ];
         ops.push(create_op);
+        if (delegate) {
+            const delegate_op = [
+                'delegate_vesting_shares',
+                {
+                    delegator: creator,
+                    delegatee: username,
+                    vesting_shares: '9500.123456 VESTS' //~5 hp
+                },
+            ];
+            ops.push(delegate_op);
+        }
         console.log(`attempting to create account: ${username} with ${creator}`);
         //broadcast operation to blockchain
         client.broadcast.sendOperations(ops, privateKey).then(
