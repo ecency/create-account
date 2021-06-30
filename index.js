@@ -121,13 +121,13 @@ createAccount = async (user) => {
             },
         ];
         ops.push(create_op);
-        if (delegate) {
+        if (parseFloat(delegate) > 0) {
             const delegate_op = [
                 'delegate_vesting_shares',
                 {
                     delegator: creator,
                     delegatee: username,
-                    vesting_shares: '9500.123456 VESTS' //~5 hp
+                    vesting_shares: delegate //9500.123456 VESTS ~5HP or 19000.246912 VESTS ~10HP
                 },
             ];
             ops.push(delegate_op);
