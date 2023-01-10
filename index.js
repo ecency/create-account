@@ -166,7 +166,7 @@ createAccount = async (user, premium=false) => {
                         id: "rc",
                         required_auths: [],
                         required_posting_auths: [creator],
-                        json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000}])
+                        json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000000}])
                     };
                     client.broadcast.sendOperations([['custom_json', params]], privateKey).then(
                         function(result) {
