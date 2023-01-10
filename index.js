@@ -155,25 +155,21 @@ createAccount = async (user, premium=false) => {
             ops.push(delegate_op);
         }
         if (premium) {
-            const delegaterc_op = [
-                'custom_json',
-                {
-                    "id": "rc",
-                    required_auths: [creator],
-                    required_posting_auths: [],
-                    "json": JSON.stringify([
-                        "delegate_rc",
-                        {
-                        "from": creator,
-                        "delegatees": [
-                            username
-                        ],
-                        "max_rc": 15000000000
-                        }
-                    ])
-                },
-            ];
-            ops.push(delegaterc_op);
+            const params = {
+                id: "rc",
+                required_auths: [creator],
+                required_posting_auths: [],
+                json: JSON.stringify(["delegate_rc",
+                    {
+                    "from": creator,
+                    "delegatees": [
+                        username
+                    ],
+                    "max_rc": 15000000000
+                    }
+                ])
+            };
+            ops.push(["custom_json", params]);
         }
         console.log(`attempting to create account: ${username} with ${creator}`);
         //broadcast operation to blockchain
