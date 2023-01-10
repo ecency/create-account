@@ -70,7 +70,7 @@ pendingAccounts = async () => {
     } else {
         console.log(new Date().toUTCString(), ' exiting, no pending signups');
         if (confirmAccounts.length == 0) {
-            await sleep(31000);
+            await sleep(3000);
             process.exit()
         }
     }
@@ -164,46 +164,47 @@ createAccount = async (user, premium=false) => {
             //ops.push(["custom_json", params]);
         }
         console.log(`attempting to create account: ${username} with ${creator}`);
+
         //broadcast operation to blockchain
-        client.broadcast.sendOperations(ops, privateKey).then(
-            function(result) {
-                if (result && result.block_num) {
-                    confirmAccounts.push(username);
-                    setTimeout(function(){
-                        axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
-                            {
-                                update_code: update_code,
-                                creator: acode
+        try {
+            let result = await client.broadcast.sendOperations(ops, privateKey);
+            if (result && result.block_num) {
+                confirmAccounts.push(username);
+                if (premium) {
+                    const params = {
+                        id: "rc",
+                        required_auths: [],
+                        required_posting_auths: [creator],
+                        json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000}])
+                    };
+                    client.broadcast.sendOperations([['custom_json', params]], privateKey).then(
+                        function(result) {
+                            if (result && result.block_num) {
+                                console.log('RC delegated');
+                            } else {
+                                console.log(JSON.stringify(result))
                             }
-                        )
-                        .then(resp => {
-                            if (premium) {
-                                const params = {
-                                    id: "rc",
-                                    required_auths: [creator],
-                                    required_posting_auths: [],
-                                    json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000}])
-                                };
-                                client.broadcast.sendOperations([['custom_json', params]], privateKey).then(
-                                    function(result) {
-                                        if (result && result.block_num) {
-                                            console.log('RC delegated');
-                                        }
-                                })
-                            }
-                            if (isEmpty(resp.data)) {
-                                console.log(`created premium account: ${username} with ${creator}`);
-                            }
-                        }).catch(e => {
-                            console.log(e);
-                        });
-                    }, 30000);
+                    });
                 }
-            },
-            function(error) {
-                console.log(`error happened with ${username}`, error);
+                setTimeout(function(){
+                    axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
+                        {
+                            update_code: update_code,
+                            creator: acode
+                        }
+                    )
+                    .then(resp => {
+                        if (isEmpty(resp.data)) {
+                            console.log(`created premium account: ${username} with ${creator}`);
+                        }
+                    }).catch(e => {
+                        console.log(e);
+                    });
+                }, 30000);
             }
-        );
+        } catch (error) {
+            console.log(`error happened with ${username}`, error);
+        }
     }
 };
 
