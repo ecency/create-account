@@ -51,7 +51,8 @@ pendingAccounts = async () => {
                 }
             }    
         }
-    } else if (pracs && pracs.length>0) {
+    }
+    if (pracs && pracs.length>0) {
         for (let index = 0; index < pracs.length; index++) {
             const accSearch = pracs[index].username;
             let valid = await validateAccount(pracs[index]);
@@ -62,7 +63,7 @@ pendingAccounts = async () => {
                     await sleep(3000);    
                 }
                 else {
-                    console.log(`error happened, ${accSearch} exist`);
+                    console.log(`error happened premium, ${accSearch} exist`);
                 }
             }    
         }
