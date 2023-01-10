@@ -159,15 +159,7 @@ createAccount = async (user, premium=false) => {
                 id: "rc",
                 required_auths: [creator],
                 required_posting_auths: [],
-                json: JSON.stringify(["delegate_rc",
-                    {
-                    "from": creator,
-                    "delegatees": [
-                        username
-                    ],
-                    "max_rc": 15000000000
-                    }
-                ])
+                json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000000}])
             };
             ops.push(["custom_json", params]);
         }
