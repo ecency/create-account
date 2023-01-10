@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const config = require('./config.js');
 
-const {creators, privateKeys, authCodes, delegate} = config;
+const {creators, privateKeys, authCodes, delegate, premiumAccounts} = config;
 
 //connect to rpc
 const client = new dhive.Client(['https://rpc.ecency.com', 'https://api.hive.blog'], {
@@ -28,7 +28,13 @@ pendingAccounts = async () => {
     console.log('UTC: ', new Date().toUTCString());
     const getPendingAccounts = () =>
         axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
-    const pacs = await getPendingAccounts();
+    const getPremiumAccounts = () =>
+        axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
+    let pacs = await getPendingAccounts();
+    let pracs;
+    if (premiumAccounts) {
+        pracs = await getPendingAccounts();
+    }
     //console.log('pending accounts', pacs);
     if (pacs && pacs.length>0) {
         for (let index = 0; index < pacs.length; index++) {
@@ -38,6 +44,21 @@ pendingAccounts = async () => {
                 console.log(`checking:`, accSearch);
                 if (valid) {
                     await createAccount(pacs[index]);
+                    await sleep(3000);    
+                }
+                else {
+                    console.log(`error happened, ${accSearch} exist`);
+                }
+            }    
+        }
+    } else if (pracs && pracs.length>0) {
+        for (let index = 0; index < pracs.length; index++) {
+            const accSearch = pracs[index].username;
+            let valid = await validateAccount(pracs[index]);
+            if (accSearch.length > 2) {
+                console.log(`checking:`, accSearch);
+                if (valid) {
+                    await createAccount(pracs[index], true);
                     await sleep(3000);    
                 }
                 else {
@@ -55,7 +76,7 @@ pendingAccounts = async () => {
 };
 
 //create with RC function
-createAccount = async (user) => {
+createAccount = async (user, premium=false) => {
     let creator = "";
     let ind = -1;
     let PKey = "";
@@ -132,6 +153,25 @@ createAccount = async (user) => {
             ];
             ops.push(delegate_op);
         }
+        if (premium) {
+            const delegaterc_op = [
+                'custom_json',
+                {
+                    "id": "rc",
+                    "json": [
+                        "delegate_rc",
+                        {
+                        "from": creator,
+                        "delegatees": [
+                            username
+                        ],
+                        "max_rc": 15000000000
+                        }
+                    ]
+                },
+            ];
+            ops.push(delegaterc_op);
+        }
         console.log(`attempting to create account: ${username} with ${creator}`);
         //broadcast operation to blockchain
         client.broadcast.sendOperations(ops, privateKey).then(
@@ -139,19 +179,35 @@ createAccount = async (user) => {
                 if (result && result.block_num) {
                     confirmAccounts.push(username);
                     setTimeout(function(){
-                        axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
-                            {
-                                update_code: update_code,
-                                creator: acode
-                            }
-                        )
-                        .then(resp => {
-                            if (isEmpty(resp.data)) {
-                                console.log(`created account: ${username} with ${creator}`);
-                            }
-                        }).catch(e => {
-                            console.log(e);
-                        });
+                        if (premium) {
+                            axios.put(`https://api.esteem.app/api/signup/pending-paid-accounts`,
+                                {
+                                    update_code: update_code,
+                                    creator: acode
+                                }
+                            )
+                            .then(resp => {
+                                if (isEmpty(resp.data)) {
+                                    console.log(`created premium account: ${username} with ${creator}`);
+                                }
+                            }).catch(e => {
+                                console.log(e);
+                            });
+                        } else {
+                            axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
+                                {
+                                    update_code: update_code,
+                                    creator: acode
+                                }
+                            )
+                            .then(resp => {
+                                if (isEmpty(resp.data)) {
+                                    console.log(`created account: ${username} with ${creator}`);
+                                }
+                            }).catch(e => {
+                                console.log(e);
+                            });
+                        }
                     }, 30000);
                 }
             },

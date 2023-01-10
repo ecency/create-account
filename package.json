@@ -9,7 +9,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@hiveio/dhive": "^0.14.14",
+    "@hiveio/dhive": "^1.2.5",
     "axios": "^0.19.2",
     "request": "^2.88.0"
   }
