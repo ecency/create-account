@@ -44,7 +44,7 @@ pendingAccounts = async () => {
                 console.log(`checking:`, accSearch);
                 if (valid) {
                     await createAccount(pacs[index]);
-                    await sleep(3000);    
+                    await sleep(3000);  
                 }
                 else {
                     console.log(`error happened, ${accSearch} exist`);
@@ -70,7 +70,7 @@ pendingAccounts = async () => {
     } else {
         console.log(new Date().toUTCString(), ' exiting, no pending signups');
         if (confirmAccounts.length == 0) {
-            await sleep(3000);
+            await sleep(31000);
             process.exit()
         }
     }
@@ -161,7 +161,7 @@ createAccount = async (user, premium=false) => {
                 required_posting_auths: [],
                 json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000000}])
             };
-            ops.push(["custom_json", params]);
+            //ops.push(["custom_json", params]);
         }
         console.log(`attempting to create account: ${username} with ${creator}`);
         //broadcast operation to blockchain
@@ -177,6 +177,20 @@ createAccount = async (user, premium=false) => {
                             }
                         )
                         .then(resp => {
+                            if (premium) {
+                                const params = {
+                                    id: "rc",
+                                    required_auths: [creator],
+                                    required_posting_auths: [],
+                                    json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000}])
+                                };
+                                client.broadcast.sendOperations([['custom_json', params]], privateKey).then(
+                                    function(result) {
+                                        if (result && result.block_num) {
+                                            console.log('RC delegated');
+                                        }
+                                })
+                            }
                             if (isEmpty(resp.data)) {
                                 console.log(`created premium account: ${username} with ${creator}`);
                             }
