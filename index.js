@@ -176,20 +176,20 @@ createAccount = async (user, premium=false) => {
                                 console.log(JSON.stringify(result))
                             }
                     });
-                    axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
-                        {
-                            update_code: update_code,
-                            creator: acode
-                        }
-                    )
-                    .then(resp => {
-                        if (isEmpty(resp.data)) {
-                            console.log(`validated account: ${username}`);
-                        }
-                    }).catch(e => {
-                        console.log(e);
-                    });
                 }
+                axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
+                    {
+                        update_code: update_code,
+                        creator: acode
+                    }
+                )
+                .then(resp => {
+                    if (isEmpty(resp.data)) {
+                        console.log(`verified creation: ${username}`);
+                    }
+                }).catch(e => {
+                    console.log(e);
+                });
             }
         } catch (error) {
             console.log(`error happened with ${username}`, error);
