@@ -55,7 +55,7 @@ pendingAccounts = async () => {
     if (pracs && pracs.length>0) {
         for (let index = 0; index < pracs.length; index++) {
             const accSearch = pracs[index].username;
-            let valid = await validateAccount(pracs[index]);
+            let valid = await validateAccount(pracs[index], true);
             if (accSearch.length > 2) {
                 console.log(`checking:`, accSearch);
                 if (valid) {
@@ -180,35 +180,19 @@ createAccount = async (user, premium=false) => {
                 if (result && result.block_num) {
                     confirmAccounts.push(username);
                     setTimeout(function(){
-                        if (premium) {
-                            axios.put(`https://api.esteem.app/api/signup/pending-paid-accounts`,
-                                {
-                                    update_code: update_code,
-                                    creator: acode
-                                }
-                            )
-                            .then(resp => {
-                                if (isEmpty(resp.data)) {
-                                    console.log(`created premium account: ${username} with ${creator}`);
-                                }
-                            }).catch(e => {
-                                console.log(e);
-                            });
-                        } else {
-                            axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
-                                {
-                                    update_code: update_code,
-                                    creator: acode
-                                }
-                            )
-                            .then(resp => {
-                                if (isEmpty(resp.data)) {
-                                    console.log(`created account: ${username} with ${creator}`);
-                                }
-                            }).catch(e => {
-                                console.log(e);
-                            });
-                        }
+                        axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
+                            {
+                                update_code: update_code,
+                                creator: acode
+                            }
+                        )
+                        .then(resp => {
+                            if (isEmpty(resp.data)) {
+                                console.log(`created premium account: ${username} with ${creator}`);
+                            }
+                        }).catch(e => {
+                            console.log(e);
+                        });
                     }, 30000);
                 }
             },
@@ -219,7 +203,7 @@ createAccount = async (user, premium=false) => {
     }
 };
 
-validateAccount = async(user) => {
+validateAccount = async(user, premium=false) => {
     const [account] = await client.database.call('get_accounts', [
         [user.username]
     ]);
@@ -228,7 +212,7 @@ validateAccount = async(user) => {
         // account already exist
         let inx = creators.indexOf(account.recovery_account);
         if (inx !== -1) {
-            axios.put(`https://api.esteem.app/api/signup/pending-accounts`,
+            axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
                 {
                     update_code: user.update_code,
                     creator: authCodes[inx]
