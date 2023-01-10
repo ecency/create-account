@@ -7,7 +7,7 @@ const config = require('./config.js');
 const {creators, privateKeys, authCodes, delegate, premiumAccounts} = config;
 
 //connect to rpc
-const client = new dhive.Client(['https://rpc.ecency.com', 'https://api.hive.blog'], {
+const client = new dhive.Client(['https://api.hive.blog', 'https://rpc.ecency.com'], {
     timeout: 4000,
     failoverThreshold: 20,
     consoleOnFailover: true,
