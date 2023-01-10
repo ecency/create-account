@@ -159,7 +159,7 @@ createAccount = async (user, premium=false) => {
         //broadcast operation to blockchain
         try {
             let result = await client.broadcast.sendOperations(ops, privateKey);
-            if (result && result.block_num) {
+            if (result && result.id) {
                 confirmAccounts.push(username);
                 if (premium) {
                     const params = {
@@ -170,7 +170,7 @@ createAccount = async (user, premium=false) => {
                     };
                     client.broadcast.sendOperations([['custom_json', params]], privateKey).then(
                         function(result) {
-                            if (result && result.block_num) {
+                            if (result && result.id) {
                                 console.log('RC delegated');
                             } else {
                                 console.log(JSON.stringify(result))
