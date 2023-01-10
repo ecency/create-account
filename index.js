@@ -33,7 +33,7 @@ pendingAccounts = async () => {
     let pacs = await getPendingAccounts();
     let pracs;
     if (premiumAccounts) {
-        pracs = await getPendingAccounts();
+        pracs = await getPremiumAccounts();
     }
     //console.log('pending accounts', pacs);
     if (pacs && pacs.length>0) {
