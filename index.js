@@ -159,8 +159,8 @@ createAccount = async (user, premium=false) => {
                 'custom_json',
                 {
                     "id": "rc",
-                    required_auths: [],
-                    required_posting_auths: [creator],
+                    required_auths: [creator],
+                    required_posting_auths: [],
                     "json": JSON.stringify([
                         "delegate_rc",
                         {
