@@ -154,6 +154,15 @@ createAccount = async (user, premium=false) => {
             ];
             ops.push(delegate_op);
         }
+        if (premium) {
+            const point_transfer = {
+                id: "ecency_point_transfer",
+                required_auths: [creator],
+                required_posting_auths: [],
+                json: JSON.stringify({"sender":creator,"receiver":username,"amount":"300.000 POINT","memo":""})
+            };
+            ops.push(["custom_json", point_transfer]);
+        }
         console.log(`attempting to create account: ${username} with ${creator}`);
 
         //broadcast operation to blockchain
