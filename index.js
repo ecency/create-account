@@ -159,7 +159,7 @@ createAccount = async (user, premium=false) => {
                 id: "ecency_point_transfer",
                 required_auths: [creator],
                 required_posting_auths: [],
-                json: JSON.stringify({"sender":creator,"receiver":username,"amount":"300.000 POINT","memo":""})
+                json: JSON.stringify({"sender":creator,"receiver":username,"amount":"300.000 POINT","memo":"Premium bonus"})
             };
             ops.push(["custom_json", point_transfer]);
         }
