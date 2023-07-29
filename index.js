@@ -24,17 +24,42 @@ sleep = (ms) => {
 
 let confirmAccounts = [];
 
-pendingAccounts = async () => {
-    console.log('UTC: ', new Date().toUTCString());
-    const getPendingAccounts = () =>
-        axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
+pendingPremium = async () => {
+    console.log('Premium, UTC: ', new Date().toUTCString());
     const getPremiumAccounts = () =>
         axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
-    let pacs = await getPendingAccounts();
-    let pracs;
-    if (premiumAccounts) {
-        pracs = await getPremiumAccounts();
+
+    let pracs = await getPremiumAccounts();
+    if (pracs && pracs.length>0) {
+        for (let index = 0; index < pracs.length; index++) {
+            const accSearch = pracs[index].username;
+            let valid = await validateAccount(pracs[index], true);
+            if (accSearch.length > 2) {
+                console.log(`checking:`, accSearch);
+                if (valid) {
+                    await createAccount(pracs[index], true);
+                    await sleep(3000);    
+                }
+                else {
+                    console.log(`error happened premium, ${accSearch} exist`);
+                }
+            }    
+        }
+    } else {
+        console.log(new Date().toUTCString(), ' exiting, no pending signups');
+        if (confirmAccounts.length == 0) {
+            await sleep(3000);
+            process.exit()
+        }
     }
+}
+
+pendingFree = async () => {
+    console.log('Free, UTC: ', new Date().toUTCString());
+    const getPendingAccounts = () =>
+        axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
+    let pacs = await getPendingAccounts();
+
     //console.log('pending accounts', pacs);
     if (pacs && pacs.length>0) {
         for (let index = 0; index < pacs.length; index++) {
@@ -48,22 +73,6 @@ pendingAccounts = async () => {
                 }
                 else {
                     console.log(`error happened, ${accSearch} exist`);
-                }
-            }    
-        }
-    }
-    if (pracs && pracs.length>0) {
-        for (let index = 0; index < pracs.length; index++) {
-            const accSearch = pracs[index].username;
-            let valid = await validateAccount(pracs[index], true);
-            if (accSearch.length > 2) {
-                console.log(`checking:`, accSearch);
-                if (valid) {
-                    await createAccount(pracs[index], true);
-                    await sleep(3000);    
-                }
-                else {
-                    console.log(`error happened premium, ${accSearch} exist`);
                 }
             }    
         }
@@ -235,4 +244,9 @@ validateAccount = async(user, premium=false) => {
     }
 }
 
-pendingAccounts();
+
+if (premiumAccounts) {
+    pendingPremium();
+} else {
+    pendingFree(); 
+}
