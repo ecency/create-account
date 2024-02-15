@@ -23,13 +23,12 @@ sleep = (ms) => {
 }
 
 let confirmAccounts = [];
+const getPremiumAccounts = () =>
+    axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
+const updPremium = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
 
 pendingPremium = async () => {
     console.log('Premium, UTC: ', new Date().toUTCString());
-    const getPremiumAccounts = () =>
-        axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
-    const updPremium = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
-
     let pracs = await getPremiumAccounts();
     if (pracs && pracs.length>0) {
         for (let index = 0; index < pracs.length; index++) {
@@ -212,6 +211,8 @@ createAccount = async (user, premium=false) => {
                 });
             }
         } catch (error) {
+            if (premium)
+                await updPremium({username: username, creator: acode});
             console.log(`error happened with ${username}`, error);
         }
     }
