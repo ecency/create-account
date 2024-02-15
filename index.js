@@ -23,13 +23,16 @@ sleep = (ms) => {
 }
 
 let confirmAccounts = [];
-const getPremiumAccounts = () =>
-    axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
-const updPremium = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
+const getPendingAccounts = (creator) =>
+    axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${creator}`).then(resp => resp.data);
+const getPremiumAccounts = (creator) =>
+    axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${creator}`).then(resp => resp.data);
+const updPremiumExist = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
+const updAccountExist = (data) => axios.put(`https://api.esteem.app/api/signup/account-exist`, data);
 
 pendingPremium = async () => {
     console.log('Premium, UTC: ', new Date().toUTCString());
-    let pracs = await getPremiumAccounts();
+    let pracs = await getPremiumAccounts(authCodes[0]);
     if (pracs && pracs.length>0) {
         for (let index = 0; index < pracs.length; index++) {
             const accSearch = pracs[index].username;
@@ -41,7 +44,7 @@ pendingPremium = async () => {
                     await sleep(3000);
                 }
                 else {
-                    await updPremium({username: accSearch, creator: authCodes[0]});
+                    await updPremiumExist({username: accSearch, creator: authCodes[0]});
                     console.log(`error happened premium, ${accSearch} exist`);
                 }
             }
@@ -57,9 +60,7 @@ pendingPremium = async () => {
 
 pendingFree = async () => {
     console.log('Free, UTC: ', new Date().toUTCString());
-    const getPendingAccounts = () =>
-        axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
-    let pacs = await getPendingAccounts();
+    let pacs = await getPendingAccounts(authCodes[0]);
 
     //console.log('pending accounts', pacs);
     if (pacs && pacs.length>0) {
@@ -73,6 +74,7 @@ pendingFree = async () => {
                     await sleep(3000);
                 }
                 else {
+                    await updAccountExist({username: accSearch, creator: authCodes[0]});
                     console.log(`error happened, ${accSearch} exist`);
                 }
             }
@@ -211,8 +213,11 @@ createAccount = async (user, premium=false) => {
                 });
             }
         } catch (error) {
-            if (premium)
-                await updPremium({username: username, creator: acode});
+            if (premium){
+                await updPremiumExist({username: username, creator: acode});
+            } else {
+                await updAccountExist({username: username, creator: acode});
+            }
             console.log(`error happened with ${username}`, error);
         }
     }
