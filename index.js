@@ -28,6 +28,7 @@ pendingPremium = async () => {
     console.log('Premium, UTC: ', new Date().toUTCString());
     const getPremiumAccounts = () =>
         axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${authCodes[0]}`).then(resp => resp.data);
+    const updPremium = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
 
     let pracs = await getPremiumAccounts();
     if (pracs && pracs.length>0) {
@@ -38,12 +39,13 @@ pendingPremium = async () => {
                 console.log(`checking:`, accSearch);
                 if (valid) {
                     await createAccount(pracs[index], true);
-                    await sleep(3000);    
+                    await sleep(3000);
                 }
                 else {
+                    await updPremium({username: accSearch, creator: authCodes[0]});
                     console.log(`error happened premium, ${accSearch} exist`);
                 }
-            }    
+            }
         }
     } else {
         console.log(new Date().toUTCString(), ' exiting, no pending signups');
@@ -69,12 +71,12 @@ pendingFree = async () => {
                 console.log(`checking:`, accSearch);
                 if (valid) {
                     await createAccount(pacs[index]);
-                    await sleep(3000);  
+                    await sleep(3000);
                 }
                 else {
                     console.log(`error happened, ${accSearch} exist`);
                 }
-            }    
+            }
         }
     } else {
         console.log(new Date().toUTCString(), ' exiting, no pending signups');
@@ -248,5 +250,5 @@ validateAccount = async(user, premium=false) => {
 if (premiumAccounts) {
     pendingPremium();
 } else {
-    pendingFree(); 
+    pendingFree();
 }
