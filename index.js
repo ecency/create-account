@@ -44,7 +44,7 @@ pendingPremium = async () => {
                     await sleep(3000);
                 }
                 else {
-                    await updPremiumExist({username: accSearch, creator: authCodes[0]});
+                    //await updPremiumExist({username: accSearch, creator: authCodes[0]});
                     console.log(`error happened premium, ${accSearch} exist`);
                 }
             }
@@ -74,7 +74,7 @@ pendingFree = async () => {
                     await sleep(3000);
                 }
                 else {
-                    await updAccountExist({username: accSearch, creator: authCodes[0]});
+                    //await updAccountExist({username: accSearch, creator: authCodes[0]});
                     console.log(`error happened, ${accSearch} exist`);
                 }
             }
