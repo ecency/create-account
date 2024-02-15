@@ -209,16 +209,16 @@ createAccount = async (user, premium=false) => {
                         console.log(`verified creation: ${username}`);
                     }
                 }).catch(e => {
-                    console.log(e);
+                    console.log('axios update',e);
                 });
             }
         } catch (error) {
+            console.log(`error happened with ${username}`, error);
             if (premium){
                 await updPremiumExist({username: username, creator: acode});
             } else {
                 await updAccountExist({username: username, creator: acode});
             }
-            console.log(`error happened with ${username}`, error);
         }
     }
 };
