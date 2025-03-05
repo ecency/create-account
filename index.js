@@ -76,7 +76,7 @@ pendingWallet = async () => {
                 }
                 else {
                     //await updPremiumExist({username: accSearch, creator: authCodes[0]});
-                    console.log(`error happened premium, ${accSearch} exist`);
+                    console.log(`error happened wallet, ${accSearch} exist`);
                 }
             }
         }
@@ -293,7 +293,7 @@ validateAccount = async(user, premium=false, wallet = false) => {
             if (wallet) {
                 axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts',
                     {
-                        id: user.id,
+                        id: user._id,
                         creator: authCodes[inx]
                     }
                 )
