@@ -66,7 +66,7 @@ pendingWallet = async () => {
     let walacs = await getWalletAccounts(authCodes[0]);
     if (walacs && walacs.length>0) {
         for (let index = 0; index < walacs.length; index++) {
-            const accSearch = walacs[index].username;
+            const accSearch = walacs[index].username.toLowerCase();
             let valid = await validateAccount(walacs[index], false, true);
             if (accSearch.length > 2) {
                 console.log(`checking:`, accSearch);
@@ -141,7 +141,7 @@ createAccount = async (user, premium=false, wallet = false) => {
         PKey = privateKeys[ind];
         acode = authCodes[ind];
 
-        const username = user.username;
+        const username = user.username.toLowerCase();
 
         //pub keys
 
