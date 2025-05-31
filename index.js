@@ -30,7 +30,7 @@ const getPremiumAccounts = (creator) =>
 const getWalletAccounts = (creator) =>
     axios.get(`https://api.esteem.app/api/signup/pending-wallet-accounts?creator=${creator}`).then(resp => resp.data);
 const updPremiumExist = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
-const updWalletExist = (data) => axios.put(`https://api.esteem.app/api/signup/pending-paid-accounts`, data);
+const updWalletExist = (data) => axios.put(`https://api.esteem.app/api/signup/exist-wallet-accounts`, data);
 const updAccountExist = (data) => axios.put(`https://api.esteem.app/api/signup/account-exist`, data);
 
 pendingPremium = async () => {
