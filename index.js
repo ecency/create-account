@@ -310,40 +310,34 @@ const validateAccount = async(user, premium=false, wallet = false) => {
         ]);
 
         if (account) {
-            // account already exist
             let inx = creators.indexOf(account.recovery_account);
             if (inx !== -1) {
+                const creator = authCodes[inx];
+
                 if (wallet) {
                     try {
-                        const resp = await axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts', {
-                            id: user.id,
-                            creator: authCodes[inx]
-                        });
-                        if (isEmpty(resp.data)) {
-                            console.log(`✅ validated wallet account: ${user.username}`);
-                        } else {
-                            console.warn(`⚠️ unexpected response for ${user.username}:`, resp.data);
-                        }
+                        await updWalletExist({ username: user.username, creator });
+                        console.log(`✅ marked wallet ${user.username} as existing`);
                     } catch (e) {
-                        console.error(`❌ failed to update wallet backend for ${user.username}:`, e.response.data || e.message);
+                        console.error(`❌ failed to mark wallet ${user.username} as existing:`, e.response?.data || e.message);
+                    }
+                } else if (premium) {
+                    try {
+                        await updPremiumExist({ username: user.username, creator });
+                        console.log(`✅ marked premium ${user.username} as existing`);
+                    } catch (e) {
+                        console.error(`❌ failed to mark premium ${user.username} as existing:`, e.response?.data || e.message);
                     }
                 } else {
-                    let cuurl = premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`;
-                    axios.put(cuurl,
-                        {
-                            update_code: user.update_code,
-                            creator: authCodes[inx]
-                        }
-                    )
-                        .then(resp => {
-                            if (isEmpty(resp.data)) {
-                                console.log(`validated account: ${user.username}`);
-                            }
-                        }).catch(e => {
-                        console.log(e);
-                    });
+                    try {
+                        await updAccountExist({ username: user.username, creator });
+                        console.log(`✅ marked free ${user.username} as existing`);
+                    } catch (e) {
+                        console.error(`❌ failed to mark free ${user.username} as existing:`, e.response?.data || e.message);
+                    }
                 }
             }
+
             return false;
         } else {
             return true;
@@ -352,7 +346,8 @@ const validateAccount = async(user, premium=false, wallet = false) => {
         console.error(`Error validating account ${user.username}:`, err);
         return false;
     }
-}
+};
+
 
 (async () => {
     try {
