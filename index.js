@@ -7,28 +7,50 @@ const config = require('./config.js');
 const {creators, privateKeys, authCodes, delegate, premiumAccounts, walletAccounts} = config;
 
 //connect to rpc
-const client = new dhive.Client(['https://anyx.io','https://api.hive.blog','https://rpc.ecency.com','https://api.deathwing.me'], {
+const client = new dhive.Client(['https://hive-api.arcange.eu','https://api.hive.blog','https://api.deathwing.me'], {
     timeout: 4000,
     failoverThreshold: 20,
     consoleOnFailover: true,
   });
 
-isEmpty = (obj) => {
+const isEmpty = (obj) => {
     return Object.keys(obj).length === 0;
 }
-sleep = (ms) => {
+const sleep = (ms) => {
     return new Promise(resolve=>{
         setTimeout(resolve,ms)
     });
 }
 
 let confirmAccounts = [];
-const getPendingAccounts = (creator) =>
-    axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${creator}`).then(resp => resp.data);
-const getPremiumAccounts = (creator) =>
-    axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${creator}`).then(resp => resp.data);
-const getWalletAccounts = (creator) =>
-    axios.get(`https://api.esteem.app/api/signup/pending-wallet-accounts?creator=${creator}`).then(resp => resp.data);
+const getPendingAccounts = async (creator) => {
+    try {
+        const resp = await axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${creator}`);
+        return Array.isArray(resp.data) ? resp.data : [];
+    } catch (err) {
+        console.error("Error fetching pending accounts:", err);
+        return [];
+    }
+}
+
+const getPremiumAccounts = async (creator) => {
+    try {
+        const resp = await axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${creator}`);
+        return Array.isArray(resp.data) ? resp.data : [];
+    } catch (err) {
+        console.error("Error fetching Premium pending accounts:", err);
+        return [];
+    }
+}
+const getWalletAccounts = async (creator) => {
+    try {
+        const resp = await axios.get(`https://api.esteem.app/api/signup/pending-wallet-accounts?creator=${creator}`);
+        return Array.isArray(resp.data) ? resp.data : [];
+    } catch (err) {
+        console.error("Error fetching Wallet pending accounts:", err);
+        return [];
+    }
+}
 const updPremiumExist = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
 const updWalletExist = (data) => axios.put(`https://api.esteem.app/api/signup/exist-wallet-accounts`, data);
 const updAccountExist = (data) => axios.put(`https://api.esteem.app/api/signup/account-exist`, data);
@@ -282,48 +304,53 @@ createAccount = async (user, premium=false, wallet = false) => {
 };
 
 validateAccount = async(user, premium=false, wallet = false) => {
-    const [account] = await client.database.call('get_accounts', [
-        [user.username]
-    ]);
+    try {
+        const [account] = await client.database.call('get_accounts', [
+            [user.username]
+        ]);
 
-    if (account) {
-        // account already exist
-        let inx = creators.indexOf(account.recovery_account);
-        if (inx !== -1) {
-            if (wallet) {
-                axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts',
-                    {
-                        id: user._id,
-                        creator: authCodes[inx]
-                    }
-                )
-                    .then(resp => {
-                        if (isEmpty(resp.data)) {
-                            console.log(`validated account: ${user.username}`);
+        if (account) {
+            // account already exist
+            let inx = creators.indexOf(account.recovery_account);
+            if (inx !== -1) {
+                if (wallet) {
+                    axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts',
+                        {
+                            id: user._id,
+                            creator: authCodes[inx]
                         }
-                    }).catch(e => {
-                    console.log(e);
-                });
-            } else {
-                let cuurl = premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`;
-                axios.put(cuurl,
-                    {
-                        update_code: user.update_code,
-                        creator: authCodes[inx]
-                    }
-                )
-                    .then(resp => {
-                        if (isEmpty(resp.data)) {
-                            console.log(`validated account: ${user.username}`);
+                    )
+                        .then(resp => {
+                            if (isEmpty(resp.data)) {
+                                console.log(`validated account: ${user.username}`);
+                            }
+                        }).catch(e => {
+                        console.log(e);
+                    });
+                } else {
+                    let cuurl = premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`;
+                    axios.put(cuurl,
+                        {
+                            update_code: user.update_code,
+                            creator: authCodes[inx]
                         }
-                    }).catch(e => {
-                    console.log(e);
-                });
+                    )
+                        .then(resp => {
+                            if (isEmpty(resp.data)) {
+                                console.log(`validated account: ${user.username}`);
+                            }
+                        }).catch(e => {
+                        console.log(e);
+                    });
+                }
             }
+            return false;
+        } else {
+            return true;
         }
+    } catch (err) {
+        console.error(`Error validating account ${user.username}:`, err);
         return false;
-    } else {
-        return true;
     }
 }
 
