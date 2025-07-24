@@ -162,8 +162,8 @@ const createAccount = async (user, premium=false, wallet = false) => {
         PKey = privateKeys[ind];
         acode = authCodes[ind];
 
-        const username = user.username.toLowerCase();
-
+        user.username = user.username.toLowerCase();
+        const username = user.username;
         //pub keys
 
         if (wallet) {
@@ -314,19 +314,19 @@ const validateAccount = async(user, premium=false, wallet = false) => {
             let inx = creators.indexOf(account.recovery_account);
             if (inx !== -1) {
                 if (wallet) {
-                    axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts',
-                        {
+                    try {
+                        const resp = await axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts', {
                             id: user.id,
                             creator: authCodes[inx]
+                        });
+                        if (isEmpty(resp.data)) {
+                            console.log(`✅ validated wallet account: ${user.username}`);
+                        } else {
+                            console.warn(`⚠️ unexpected response for ${user.username}:`, resp.data);
                         }
-                    )
-                        .then(resp => {
-                            if (isEmpty(resp.data)) {
-                                console.log(`validated account: ${user.username}`);
-                            }
-                        }).catch(e => {
-                        console.log(e);
-                    });
+                    } catch (e) {
+                        console.error(`❌ failed to update wallet backend for ${user.username}:`, e.response?.data || e.message);
+                    }
                 } else {
                     let cuurl = premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`;
                     axios.put(cuurl,
@@ -354,11 +354,13 @@ const validateAccount = async(user, premium=false, wallet = false) => {
     }
 }
 
-if (walletAccounts) {
-    pendingWallet();
-}
-if (premiumAccounts) {
-    pendingPremium();
-} else {
-    pendingFree();
-}
+(async () => {
+    try {
+        if (walletAccounts) await pendingWallet();
+        if (premiumAccounts) await pendingPremium();
+        else await pendingFree();
+    } catch (err) {
+        console.error('❌ Fatal error during execution:', err);
+        process.exit(1);
+    }
+})();
