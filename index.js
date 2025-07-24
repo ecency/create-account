@@ -95,6 +95,10 @@ const pendingWallet = async () => {
                     await createAccount(walacs[index], false, true);
                     await sleep(3000);
                 }
+                else {
+                    //await updPremiumExist({username: accSearch, creator: authCodes[0]});
+                    console.log(`error happened wallet, ${accSearch} exist`);
+                }
             }
         }
     } else {
@@ -306,32 +310,14 @@ const validateAccount = async(user, premium=false, wallet = false) => {
         ]);
 
         if (account) {
-            let inx = creators.indexOf(account.recovery_account);
-            if (inx !== -1) {
-                const creator = authCodes[inx];
-
-                if (wallet) {
-                    try {
-                        await updWalletExist({ username: user.username, creator });
-                        console.log(`✅ marked wallet ${user.username} as existing`);
-                    } catch (e) {
-                        console.error(`❌ failed to mark wallet ${user.username} as existing:`, (e.response && e.response.data) || e.message);
-                    }
-                } else if (premium) {
-                    try {
-                        await updPremiumExist({ username: user.username, creator });
-                        console.log(`✅ marked premium ${user.username} as existing`);
-                    } catch (e) {
-                        console.error(`❌ failed to mark premium ${user.username} as existing:`, (e.response && e.response.data) || e.message);
-                    }
-                } else {
-                    try {
-                        await updAccountExist({ username: user.username, creator });
-                        console.log(`✅ marked free ${user.username} as existing`);
-                    } catch (e) {
-                        console.error(`❌ failed to mark free ${user.username} as existing:`, (e.response && e.response.data) || e.message);
-                    }
-                }
+            const inx = creators.indexOf(account.recovery_account);
+            const creator = inx !== -1 ? authCodes[inx] : authCodes[0];
+            if (wallet) {
+                await updWalletExist({ username: user.username, creator });
+            } else if (premium) {
+                await updPremiumExist({ username: user.username, creator });
+            } else {
+                await updAccountExist({ username: user.username, creator });
             }
 
             return false;
