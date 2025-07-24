@@ -325,7 +325,7 @@ const validateAccount = async(user, premium=false, wallet = false) => {
                             console.warn(`⚠️ unexpected response for ${user.username}:`, resp.data);
                         }
                     } catch (e) {
-                        console.error(`❌ failed to update wallet backend for ${user.username}:`, e.response?.data || e.message);
+                        console.error(`❌ failed to update wallet backend for ${user.username}:`, e.response.data || e.message);
                     }
                 } else {
                     let cuurl = premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`;
