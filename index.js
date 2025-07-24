@@ -1,5 +1,4 @@
 const dhive = require('@hiveio/dhive');
-const request = require("request");
 const axios = require('axios');
 
 const config = require('./config.js');
@@ -55,7 +54,7 @@ const updPremiumExist = (data) => axios.put(`https://api.esteem.app/api/signup/p
 const updWalletExist = (data) => axios.put(`https://api.esteem.app/api/signup/exist-wallet-accounts`, data);
 const updAccountExist = (data) => axios.put(`https://api.esteem.app/api/signup/account-exist`, data);
 
-pendingPremium = async () => {
+const pendingPremium = async () => {
     console.log('Premium, UTC: ', new Date().toUTCString());
     let pracs = await getPremiumAccounts(authCodes[0]);
     if (pracs && pracs.length>0) {
@@ -83,7 +82,7 @@ pendingPremium = async () => {
     }
 }
 
-pendingWallet = async () => {
+const pendingWallet = async () => {
     console.log('Wallet, UTC: ', new Date().toUTCString());
     let walacs = await getWalletAccounts(authCodes[0]);
     if (walacs && walacs.length>0) {
@@ -111,7 +110,7 @@ pendingWallet = async () => {
     }
 }
 
-pendingFree = async () => {
+const pendingFree = async () => {
     console.log('Free, UTC: ', new Date().toUTCString());
     let pacs = await getPendingAccounts(authCodes[0]);
 
@@ -142,7 +141,7 @@ pendingFree = async () => {
 };
 
 //create with RC function
-createAccount = async (user, premium=false, wallet = false) => {
+const createAccount = async (user, premium=false, wallet = false) => {
     let creator = "";
     let ind = -1;
     let PKey = "";
@@ -303,7 +302,8 @@ createAccount = async (user, premium=false, wallet = false) => {
     }
 };
 
-validateAccount = async(user, premium=false, wallet = false) => {
+const validateAccount = async(user, premium=false, wallet = false) => {
+    user.username = user.username.toLowerCase();
     try {
         const [account] = await client.database.call('get_accounts', [
             [user.username]
@@ -316,7 +316,7 @@ validateAccount = async(user, premium=false, wallet = false) => {
                 if (wallet) {
                     axios.put('https://api.esteem.app/api/signup/pending-wallet-accounts',
                         {
-                            id: user._id,
+                            id: user.id,
                             creator: authCodes[inx]
                         }
                     )
