@@ -319,21 +319,21 @@ const validateAccount = async(user, premium=false, wallet = false) => {
                         await updWalletExist({ username: user.username, creator });
                         console.log(`✅ marked wallet ${user.username} as existing`);
                     } catch (e) {
-                        console.error(`❌ failed to mark wallet ${user.username} as existing:`, e.response?.data || e.message);
+                        console.error(`❌ failed to mark wallet ${user.username} as existing:`, (e.response && e.response.data) || e.message);
                     }
                 } else if (premium) {
                     try {
                         await updPremiumExist({ username: user.username, creator });
                         console.log(`✅ marked premium ${user.username} as existing`);
                     } catch (e) {
-                        console.error(`❌ failed to mark premium ${user.username} as existing:`, e.response?.data || e.message);
+                        console.error(`❌ failed to mark premium ${user.username} as existing:`, (e.response && e.response.data) || e.message);
                     }
                 } else {
                     try {
                         await updAccountExist({ username: user.username, creator });
                         console.log(`✅ marked free ${user.username} as existing`);
                     } catch (e) {
-                        console.error(`❌ failed to mark free ${user.username} as existing:`, e.response?.data || e.message);
+                        console.error(`❌ failed to mark free ${user.username} as existing:`, (e.response && e.response.data) || e.message);
                     }
                 }
             }
