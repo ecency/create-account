@@ -95,10 +95,6 @@ const pendingWallet = async () => {
                     await createAccount(walacs[index], false, true);
                     await sleep(3000);
                 }
-                else {
-                    //await updPremiumExist({username: accSearch, creator: authCodes[0]});
-                    console.log(`error happened wallet, ${accSearch} exist`);
-                }
             }
         }
     } else {
