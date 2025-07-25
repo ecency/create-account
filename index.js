@@ -302,7 +302,7 @@ const createAccount = async (user, premium=false, wallet = false) => {
     }
 };
 
-const validateAccount = async(user, premium=false, wallet = false) => {
+const validateAccount = async (user, premium = false, wallet = false) => {
     user.username = user.username.toLowerCase();
     try {
         const [account] = await client.database.call('get_accounts', [
@@ -310,14 +310,40 @@ const validateAccount = async(user, premium=false, wallet = false) => {
         ]);
 
         if (account) {
-            const inx = creators.indexOf(account.recovery_account);
-            const creator = inx !== -1 ? authCodes[inx] : authCodes[0];
-            if (wallet) {
-                await updWalletExist({ username: user.username, creator });
-            } else if (premium) {
-                await updPremiumExist({ username: user.username, creator });
+            // If created this session, skip update (already handled)
+            if (confirmAccounts.includes(user.username)) {
+                console.log(`✅ Skipping existence update for ${user.username}, recently created.`);
+                return false;
+            }
+
+            const creatorIndex = creators.indexOf(account.recovery_account);
+            const creator = creatorIndex !== -1 ? authCodes[creatorIndex] : authCodes[0];
+
+            if (creatorIndex !== -1) {
+                const updateData = wallet
+                    ? { id: user.id, creator } // wallet uses `id` not `update_code`
+                    : { update_code: user.update_code, creator };
+
+                const endpoint = wallet
+                    ? `https://api.esteem.app/api/signup/pending-wallet-accounts`
+                    : premium
+                        ? `https://api.esteem.app/api/signup/pending-paid-accounts`
+                        : `https://api.esteem.app/api/signup/pending-accounts`;
+
+                await axios.put(endpoint, updateData);
+
+                console.log(`✅ Marked ${user.username} as successfully created (status 3).`);
             } else {
-                await updAccountExist({ username: user.username, creator });
+                // 🚫 Someone else created this account — mark as status 6
+                if (wallet) {
+                    await updWalletExist({ username: user.username, creator });
+                } else if (premium) {
+                    await updPremiumExist({ username: user.username, creator });
+                } else {
+                    await updAccountExist({ username: user.username, creator });
+                }
+
+                console.log(`⚠️ ${user.username} exists but recovery doesn't match — marked as status 6.`);
             }
 
             return false;
@@ -325,7 +351,7 @@ const validateAccount = async(user, premium=false, wallet = false) => {
             return true;
         }
     } catch (err) {
-        console.error(`Error validating account ${user.username}:`, err);
+        console.error(`❌ Error validating account ${user.username}:`, err);
         return false;
     }
 };
