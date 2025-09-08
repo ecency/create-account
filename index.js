@@ -6,7 +6,7 @@ const config = require('./config.js');
 const {creators, privateKeys, authCodes, delegate, premiumAccounts, walletAccounts} = config;
 
 //connect to rpc
-const client = new dhive.Client(['https://hive-api.arcange.eu','https://techcoderx.com','https://api.deathwing.me', 'https://api.openhive.network', 'https://api.c0ff33a.uk'], {
+const client = new dhive.Client(['https://api.hive.blog','https://hive-api.arcange.eu','https://techcoderx.com','https://api.deathwing.me', 'https://api.openhive.network', 'https://api.c0ff33a.uk'], {
     timeout: 4000,
     failoverThreshold: 20,
     consoleOnFailover: true,
@@ -330,17 +330,28 @@ const validateAccount = async (user, premium = false, wallet = false) => {
                         ? `https://api.esteem.app/api/signup/pending-paid-accounts`
                         : `https://api.esteem.app/api/signup/pending-accounts`;
 
-                await axios.put(endpoint, updateData);
+                try {
+                    await axios.put(endpoint, updateData);
+                } catch (err) {
+                    // Treat 406 as already updated by another run
+                    if (!(err.response && err.response.status === 406)) {
+                        throw err;
+                    }
+                    console.log(`⚠️ ${user.username} already marked as created on API.`);
+                }
 
                 console.log(`✅ Marked ${user.username} as successfully created (status 3).`);
             } else {
                 // 🚫 Someone else created this account — mark as status 6
-                if (wallet) {
-                    await updWalletExist({ username: user.username, creator });
-                } else if (premium) {
-                    await updPremiumExist({ username: user.username, creator });
-                } else {
-                    await updAccountExist({ username: user.username, creator });
+                const existUpdater = wallet ? updWalletExist : premium ? updPremiumExist : updAccountExist;
+                try {
+                    await existUpdater({ username: user.username, creator });
+                } catch (err) {
+                    // If API responds with 406, it means account already marked as existing
+                    if (!(err.response && err.response.status === 406)) {
+                        throw err;
+                    }
+                    console.log(`⚠️ ${user.username} already marked as existing on API.`);
                 }
 
                 console.log(`⚠️ ${user.username} exists but recovery doesn't match — marked as status 6.`);
