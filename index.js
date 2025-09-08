@@ -8,7 +8,7 @@ const {creators, privateKeys, authCodes, delegate, premiumAccounts, walletAccoun
 //connect to rpc
 const client = new dhive.Client(['https://hive-api.arcange.eu','https://techcoderx.com','https://api.deathwing.me', 'https://api.openhive.network', 'https://api.c0ff33a.uk'], {
     timeout: 4000,
-    failoverThreshold: 4,
+    failoverThreshold: 20,
     consoleOnFailover: true,
   });
 
@@ -321,7 +321,7 @@ const validateAccount = async (user, premium = false, wallet = false) => {
 
             if (creatorIndex !== -1) {
                 const updateData = wallet
-                    ? { id: user.id, creator } // wallet uses `id` not `update_code`
+                    ? { id: user.update_code || user.id, creator } // wallet uses `id` not `update_code`
                     : { update_code: user.update_code, creator };
 
                 const endpoint = wallet
@@ -333,8 +333,9 @@ const validateAccount = async (user, premium = false, wallet = false) => {
                 try {
                     await axios.put(endpoint, updateData);
                 } catch (err) {
-                    // Treat 406 as already updated by another run
-                    if (!(err.response && err.response.status === 406)) {
+                    const status = err.response && err.response.status;
+                    // Treat 400/406 as already updated by another run
+                    if (status !== 400 && status !== 406) {
                         throw err;
                     }
                     console.log(`⚠️ ${user.username} already marked as created on API.`);
