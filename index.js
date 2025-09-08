@@ -6,9 +6,9 @@ const config = require('./config.js');
 const {creators, privateKeys, authCodes, delegate, premiumAccounts, walletAccounts} = config;
 
 //connect to rpc
-const client = new dhive.Client(['https://api.hive.blog','https://hive-api.arcange.eu','https://techcoderx.com','https://api.deathwing.me', 'https://api.openhive.network', 'https://api.c0ff33a.uk'], {
+const client = new dhive.Client(['https://hive-api.arcange.eu','https://techcoderx.com','https://api.deathwing.me', 'https://api.openhive.network', 'https://api.c0ff33a.uk'], {
     timeout: 4000,
-    failoverThreshold: 20,
+    failoverThreshold: 4,
     consoleOnFailover: true,
   });
 
