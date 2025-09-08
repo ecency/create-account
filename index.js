@@ -167,7 +167,7 @@ const createAccount = async (user, premium=false, wallet = false) => {
         //pub keys
 
         if (wallet) {
-            user.update_code = user.id;
+            user.update_code = user.id || user._id;
             user.owner = user.meta.ownerPublicKey;
             user.active = user.meta.activePublicKey;
             user.posting = user.meta.postingPublicKey;
@@ -321,7 +321,7 @@ const validateAccount = async (user, premium = false, wallet = false) => {
 
             if (creatorIndex !== -1) {
                 const updateData = wallet
-                    ? { id: user.update_code || user.id, creator } // wallet uses `id` not `update_code`
+                    ? { id: user._id, creator } // wallet uses `_id` from API response
                     : { update_code: user.update_code, creator };
 
                 const endpoint = wallet
@@ -334,8 +334,8 @@ const validateAccount = async (user, premium = false, wallet = false) => {
                     await axios.put(endpoint, updateData);
                 } catch (err) {
                     const status = err.response && err.response.status;
-                    // Treat 400/406 as already updated by another run
-                    if (status !== 400 && status !== 406) {
+                    // Treat 406 as already updated by another run
+                    if (status !== 406) {
                         throw err;
                     }
                     console.log(`⚠️ ${user.username} already marked as created on API.`);
