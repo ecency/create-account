@@ -174,21 +174,40 @@ const createAccount = async (user, premium=false, wallet = false) => {
             user.memo = user.meta.memoPublicKey;
         }
         const update_code = user.update_code;
-        const memoKey = user.memo;
+
+        const requiredKeys = {
+            owner: user.owner,
+            active: user.active,
+            posting: user.posting,
+            memo: user.memo,
+        };
+
+        const missingKeys = Object.entries(requiredKeys)
+            .filter(([, value]) => typeof value !== 'string' || value.trim() === '')
+            .map(([key]) => key);
+
+        if (missingKeys.length) {
+            console.log(
+                `Skipping account creation for ${username}: missing public key(s) ${missingKeys.join(', ')}.`
+            );
+            return;
+        }
+
+        const memoKey = requiredKeys.memo;
         const ownerAuth = {
             weight_threshold: 1,
             account_auths: [],
-            key_auths: [[user.owner, 1]],
+            key_auths: [[requiredKeys.owner, 1]],
         };
         const activeAuth = {
             weight_threshold: 1,
             account_auths: [],
-            key_auths: [[user.active, 1]],
+            key_auths: [[requiredKeys.active, 1]],
         };
         const postingAuth = {
             weight_threshold: 1,
             account_auths: [['ecency.app', 1]],
-            key_auths: [[user.posting, 1]],
+            key_auths: [[requiredKeys.posting, 1]],
         };
 
         //private active key of creator account
