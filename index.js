@@ -24,7 +24,7 @@ const sleep = (ms) => {
 let confirmAccounts = [];
 const getPendingAccounts = async (creator) => {
     try {
-        const resp = await axios.get(`https://api.esteem.app/api/signup/pending-accounts?creator=${creator}`);
+        const resp = await axios.get(`https://api.ecency.com/api/signup/pending-accounts?creator=${creator}`);
         return Array.isArray(resp.data) ? resp.data : [];
     } catch (err) {
         console.error("Error fetching pending accounts:", err);
@@ -34,7 +34,7 @@ const getPendingAccounts = async (creator) => {
 
 const getPremiumAccounts = async (creator) => {
     try {
-        const resp = await axios.get(`https://api.esteem.app/api/signup/pending-paid-accounts?creator=${creator}`);
+        const resp = await axios.get(`https://api.ecency.com/api/signup/pending-paid-accounts?creator=${creator}`);
         return Array.isArray(resp.data) ? resp.data : [];
     } catch (err) {
         console.error("Error fetching Premium pending accounts:", err);
@@ -43,16 +43,16 @@ const getPremiumAccounts = async (creator) => {
 }
 const getWalletAccounts = async (creator) => {
     try {
-        const resp = await axios.get(`https://api.esteem.app/api/signup/pending-wallet-accounts?creator=${creator}`);
+        const resp = await axios.get(`https://api.ecency.com/api/signup/pending-wallet-accounts?creator=${creator}`);
         return Array.isArray(resp.data) ? resp.data : [];
     } catch (err) {
         console.error("Error fetching Wallet pending accounts:", err);
         return [];
     }
 }
-const updPremiumExist = (data) => axios.put(`https://api.esteem.app/api/signup/paid-account-exist`, data);
-const updWalletExist = (data) => axios.put(`https://api.esteem.app/api/signup/exist-wallet-accounts`, data);
-const updAccountExist = (data) => axios.put(`https://api.esteem.app/api/signup/account-exist`, data);
+const updPremiumExist = (data) => axios.put(`https://api.ecency.com/api/signup/paid-account-exist`, data);
+const updWalletExist = (data) => axios.put(`https://api.ecency.com/api/signup/exist-wallet-accounts`, data);
+const updAccountExist = (data) => axios.put(`https://api.ecency.com/api/signup/account-exist`, data);
 
 const pendingPremium = async () => {
     console.log('Premium, UTC: ', new Date().toUTCString());
@@ -277,7 +277,7 @@ const createAccount = async (user, premium=false, wallet = false) => {
                     });
                 }
                 if (wallet) {
-                    axios.put(`https://api.esteem.app/api/signup/pending-wallet-accounts`,
+                    axios.put(`https://api.ecency.com/api/signup/pending-wallet-accounts`,
                         {
                             id: update_code,
                             creator: acode
@@ -291,7 +291,7 @@ const createAccount = async (user, premium=false, wallet = false) => {
                         console.log('axios update',e);
                     });
                 } else {
-                    axios.put(premium?`https://api.esteem.app/api/signup/pending-paid-accounts`:`https://api.esteem.app/api/signup/pending-accounts`,
+                    axios.put(premium?`https://api.ecency.com/api/signup/pending-paid-accounts`:`https://api.ecency.com/api/signup/pending-accounts`,
                         {
                             update_code: update_code,
                             creator: acode
@@ -344,10 +344,10 @@ const validateAccount = async (user, premium = false, wallet = false) => {
                     : { update_code: user.update_code, creator };
 
                 const endpoint = wallet
-                    ? `https://api.esteem.app/api/signup/pending-wallet-accounts`
+                    ? `https://api.ecency.com/api/signup/pending-wallet-accounts`
                     : premium
-                        ? `https://api.esteem.app/api/signup/pending-paid-accounts`
-                        : `https://api.esteem.app/api/signup/pending-accounts`;
+                        ? `https://api.ecency.com/api/signup/pending-paid-accounts`
+                        : `https://api.ecency.com/api/signup/pending-accounts`;
 
                 try {
                     await axios.put(endpoint, updateData);
