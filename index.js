@@ -261,20 +261,32 @@ const createAccount = async (user, premium=false, wallet = false) => {
             if (result && result.id) {
                 confirmAccounts.push(username);
                 if (premium) {
-                    const params = {
-                        id: "rc",
-                        required_auths: [],
-                        required_posting_auths: [creator],
-                        json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000000}])
-                    };
-                    client.broadcast.sendOperations([['custom_json', params]], privateKey).then(
-                        function(result) {
-                            if (result && result.id) {
-                                console.log('RC delegated');
-                            } else {
-                                console.log(JSON.stringify(result))
-                            }
-                    });
+                    // delegate_rc is a posting-authority custom_json — the creator's
+                    // active key cannot sign it. The posting key comes from the unit's
+                    // EnvironmentFile (shared with ebot-rc-delegator); skip gracefully
+                    // when absent and never let a failure crash the run (a crash here
+                    // used to abort before the signup was marked done/keys emailed).
+                    const postingWif = process.env.POSTING_WIF;
+                    if (!postingWif) {
+                        console.log('RC delegation skipped: POSTING_WIF not configured');
+                    } else {
+                        const params = {
+                            id: "rc",
+                            required_auths: [],
+                            required_posting_auths: [creator],
+                            json: JSON.stringify(["delegate_rc",{"from":creator,"delegatees":[username],"max_rc":15000000000}])
+                        };
+                        client.broadcast.sendOperations([['custom_json', params]], dhive.PrivateKey.fromString(postingWif)).then(
+                            function(result) {
+                                if (result && result.id) {
+                                    console.log('RC delegated');
+                                } else {
+                                    console.log(JSON.stringify(result))
+                                }
+                        }).catch(function(err) {
+                            console.log('RC delegation failed:', err.message);
+                        });
+                    }
                 }
                 if (wallet) {
                     axios.put(`https://api.ecency.com/api/signup/pending-wallet-accounts`,
