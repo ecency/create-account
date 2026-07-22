@@ -350,7 +350,23 @@ const validateAccount = async (user, premium = false, wallet = false) => {
             const creatorIndex = creators.indexOf(account.recovery_account);
             const creator = creatorIndex !== -1 ? authCodes[creatorIndex] : authCodes[0];
 
-            if (creatorIndex !== -1) {
+            // A matching recovery account only proves we created this name at some
+            // point, not that we created it for THIS signup. A buyer whose paid
+            // signup stalls can go and self-serve the same name through the free
+            // flow; the account that results is not this row's account, so marking
+            // the row done here hands the buyer credentials that cannot unlock it,
+            // and the create op (which is what carries the signup bonus and the RC
+            // delegation) never runs. The API already hands us this row's expected
+            // public keys, so compare against the chain and treat a mismatch as
+            // "someone else's account".
+            // Wallet rows carry their keys under `meta` and only get flattened onto
+            // `user` inside createAccount, which runs after this check, so read the
+            // meta payload directly rather than the not-yet-populated user.owner.
+            const expectedOwner = wallet ? (user.meta || {}).ownerPublicKey : user.owner;
+            const onChainOwnerKeys = ((account.owner || {}).key_auths || []).map((ka) => ka[0]);
+            const keysMatch = !expectedOwner || onChainOwnerKeys.includes(expectedOwner);
+
+            if (creatorIndex !== -1 && keysMatch) {
                 const updateData = wallet
                     ? { id: user._id, creator } // wallet uses `_id` from API response
                     : { update_code: user.update_code, creator };
@@ -374,7 +390,7 @@ const validateAccount = async (user, premium = false, wallet = false) => {
 
                 console.log(`✅ Marked ${user.username} as successfully created (status 3).`);
             } else {
-                // 🚫 Someone else created this account — mark as status 6
+                // 🚫 Not the account this signup paid for — mark as status 6
                 const existUpdater = wallet ? updWalletExist : premium ? updPremiumExist : updAccountExist;
                 try {
                     await existUpdater({ username: user.username, creator });
@@ -386,7 +402,15 @@ const validateAccount = async (user, premium = false, wallet = false) => {
                     console.log(`⚠️ ${user.username} already marked as existing on API.`);
                 }
 
-                console.log(`⚠️ ${user.username} exists but recovery doesn't match — marked as status 6.`);
+                if (creatorIndex === -1) {
+                    console.log(`⚠️ ${user.username} exists but recovery doesn't match — marked as status 6.`);
+                } else {
+                    // Paid signups land here when the buyer already created the name
+                    // themselves. The money was taken and nothing was delivered, so
+                    // this needs a human: refund, or deliver the bonuses onto the
+                    // account they already have.
+                    console.log(`⚠️ ${user.username} exists with our recovery but different owner key — not this signup's account, marked as status 6.${premium ? ' PAID SIGNUP UNDELIVERED — needs manual review.' : ''}`);
+                }
             }
 
             return false;
