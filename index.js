@@ -359,7 +359,10 @@ const validateAccount = async (user, premium = false, wallet = false) => {
             // premium bonus and the RC delegation) never runs. The API already
             // hands us the public keys this row's update_code derives, so compare
             // against the chain and treat a mismatch as "someone else's account".
-            const expectedOwner = user.owner;
+            // Wallet rows carry their keys under `meta` and only get flattened onto
+            // `user` inside createAccount, which runs after this check, so read the
+            // meta payload directly rather than the not-yet-populated user.owner.
+            const expectedOwner = wallet ? (user.meta || {}).ownerPublicKey : user.owner;
             const onChainOwnerKeys = ((account.owner || {}).key_auths || []).map((ka) => ka[0]);
             const keysMatch = !expectedOwner || onChainOwnerKeys.includes(expectedOwner);
 
