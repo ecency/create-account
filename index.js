@@ -353,12 +353,12 @@ const validateAccount = async (user, premium = false, wallet = false) => {
             // A matching recovery account only proves we created this name at some
             // point, not that we created it for THIS signup. A buyer whose paid
             // signup stalls can go and self-serve the same name through the free
-            // flow; that account carries keys derived from its own update_code, so
-            // marking the paid row done here emails the buyer keys that cannot
-            // unlock it, and the create op (which is what carries the 300 POINT
-            // premium bonus and the RC delegation) never runs. The API already
-            // hands us the public keys this row's update_code derives, so compare
-            // against the chain and treat a mismatch as "someone else's account".
+            // flow; the account that results is not this row's account, so marking
+            // the row done here hands the buyer credentials that cannot unlock it,
+            // and the create op (which is what carries the signup bonus and the RC
+            // delegation) never runs. The API already hands us this row's expected
+            // public keys, so compare against the chain and treat a mismatch as
+            // "someone else's account".
             // Wallet rows carry their keys under `meta` and only get flattened onto
             // `user` inside createAccount, which runs after this check, so read the
             // meta payload directly rather than the not-yet-populated user.owner.
