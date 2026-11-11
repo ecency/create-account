@@ -63,6 +63,7 @@ async function processRow(row, d) {
     result = { status: 'failed', error: decision.error }
     outcome = 'failed'
   } else if (decision.action === 'already_requested') {
+    d.broadcastFailures.delete(row.request_id)
     log.info('request already on chain, not broadcasting again', ctx)
     result = { status: 'requested' }
     outcome = 'already_requested'
@@ -81,8 +82,13 @@ async function processRow(row, d) {
       d.broadcastFailures.set(row.request_id, n)
       log.error('broadcast failed', { ...ctx, attempt: n, err: errMsg(log, e) })
       if (n < MAX_BROADCAST_ATTEMPTS) return 'error'
+      const seen = await requestLanded(row, d, ctx)
+      // Unreadable chain: nothing is known, so nothing is reported. The count stays at
+      // the limit, so the next pass's normal read decides and at most one more broadcast
+      // follows before the row is settled.
+      if (seen === 'unknown') return 'error'
       d.broadcastFailures.delete(row.request_id)
-      if (await requestLanded(row, d, ctx)) {
+      if (seen === 'landed') {
         result = { status: 'requested' }
         outcome = 'requested'
       } else {
@@ -96,15 +102,21 @@ async function processRow(row, d) {
 }
 
 // After the last failed broadcast: one fresh read, in case the transaction landed anyway.
+// -> 'landed' | 'absent' | 'unknown' (the read failed)
 async function requestLanded(row, d, ctx) {
   try {
     const state = await d.chain.getState(row.username)
-    const landed = pendingRequestMatches(state.pendingRequests, row.username, row.new_owner_pub)
-    if (landed) d.log.info('request found on chain after broadcast errors', ctx)
-    return landed
+    if (pendingRequestMatches(state.pendingRequests, row.username, row.new_owner_pub)) {
+      d.log.info('request found on chain after broadcast errors', ctx)
+      return 'landed'
+    }
+    return 'absent'
   } catch (e) {
-    d.log.warn('chain re-read after broadcast errors failed', { ...ctx, err: errMsg(d.log, e) })
-    return false
+    d.log.warn('chain re-read after broadcast errors failed, leaving the row for the next pass', {
+      ...ctx,
+      err: errMsg(d.log, e),
+    })
+    return 'unknown'
   }
 }
 

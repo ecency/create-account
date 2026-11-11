@@ -90,18 +90,68 @@ test('final broadcast failure: a matching request found on re-read is reported r
   assert.deepEqual(d.calls.put, [[row().request_id, { status: 'requested' }]])
 })
 
-test('final broadcast failure: no match or a failed re-read still fails the row', async () => {
-  for (const reread of [async () => chainState(), async () => { throw new Error('node down') }]) {
-    let reads = 0
-    const d = deps({
-      chain: { getState: async () => (++reads > 3 ? reread() : chainState()) },
-      signer: { broadcast: async () => { throw new Error('timeout') } },
-    })
-    await processRow(row(), d)
-    await processRow(row(), d)
-    assert.equal(await processRow(row(), d), 'failed')
-    assert.deepEqual(d.calls.put, [[row().request_id, { status: 'failed', error: 'broadcast_error' }]])
-  }
+test('final broadcast failure: re-read without our request fails the row', async () => {
+  let reads = 0
+  const d = deps({
+    chain: { getState: async () => { reads++; return chainState() } },
+    signer: { broadcast: async () => { throw new Error('timeout') } },
+  })
+  await processRow(row(), d)
+  await processRow(row(), d)
+  assert.equal(await processRow(row(), d), 'failed')
+  assert.equal(reads, 4)
+  assert.deepEqual(d.calls.put, [[row().request_id, { status: 'failed', error: 'broadcast_error' }]])
+})
+
+test('final broadcast failure: an unreadable chain leaves the row for the next pass', async () => {
+  const landed = chainState({
+    pendingRequests: [{ account_to_recover: 'alice', new_owner_authority: authority([KEYS.newOwner]), expires: at(DAY) }],
+  })
+  const log = recordingLog()
+  let reads = 0
+  let chain = null // per read: a state, or 'throw'
+  const d = deps({
+    log,
+    chain: {
+      getState: async () => {
+        reads++
+        const next = chain(reads)
+        if (next === 'throw') throw new Error('node down')
+        return next
+      },
+    },
+    signer: { broadcast: async (op) => { d.calls.broadcast.push(op); throw new Error('timeout') } },
+  })
+  chain = (n) => (n === 4 ? 'throw' : chainState())
+  await processRow(row(), d)
+  await processRow(row(), d)
+  assert.equal(await processRow(row(), d), 'error')
+  assert.deepEqual(d.calls.put, [])
+  assert.ok(log.lines.some((l) => l.level === 'warn' && /re-read/.test(l.msg)))
+  assert.equal(d.calls.broadcast.length, 3)
+
+  // next pass: the normal read finds our request and reports it, no new broadcast
+  chain = () => landed
+  assert.equal(await processRow(row(), d), 'already_requested')
+  assert.equal(d.calls.broadcast.length, 3)
+  assert.equal(d.broadcastFailures.size, 0)
+  assert.deepEqual(d.calls.put, [[row().request_id, { status: 'requested' }]])
+})
+
+test('after an unreadable re-read, a request still missing gets one more broadcast, then is decided', async () => {
+  let reads = 0
+  const d = deps({
+    chain: { getState: async () => { reads++; if (reads === 4) throw new Error('node down'); return chainState() } },
+    signer: { broadcast: async (op) => { d.calls.broadcast.push(op); throw new Error('timeout') } },
+  })
+  await processRow(row(), d)
+  await processRow(row(), d)
+  assert.equal(await processRow(row(), d), 'error')
+  assert.equal(d.calls.broadcast.length, 3)
+  // one broadcast on the next pass; it fails, the re-read finds nothing, the row fails
+  assert.equal(await processRow(row(), d), 'failed')
+  assert.equal(d.calls.broadcast.length, 4)
+  assert.deepEqual(d.calls.put, [[row().request_id, { status: 'failed', error: 'broadcast_error' }]])
 })
 
 test('malformed chain data that makes the rules throw counts as a chain read failure', async () => {
