@@ -8,6 +8,14 @@ const { createOnboardClient } = require('./onboard')
 const { createHourlyCap, signerKeyAuthorized, DEFAULT_MARGIN_MS } = require('./rules')
 const { pollOnce } = require('./worker')
 
+// Node 18+ provides both; older versions would fail on the first request.
+function missingRuntime(g = globalThis) {
+  const missing = []
+  if (typeof g.fetch !== 'function') missing.push('fetch')
+  if (!g.AbortSignal || typeof g.AbortSignal.timeout !== 'function') missing.push('AbortSignal.timeout')
+  return missing
+}
+
 function parseArgs(argv) {
   const opts = { once: false }
   for (const a of argv) {
@@ -33,6 +41,11 @@ async function runLoop({ once, pollSeconds, pollOnce: poll, sleep, shouldStop })
 }
 
 async function main(argv, dir) {
+  const missing = missingRuntime()
+  if (missing.length) {
+    log.error(`Node 18 or newer is required (missing ${missing.join(', ')}); running ${process.version}`)
+    process.exit(2)
+  }
   let opts
   let config
   try {
@@ -120,4 +133,4 @@ async function main(argv, dir) {
   log.info('stopped')
 }
 
-module.exports = { parseArgs, loadCreatorConfig, runLoop, main }
+module.exports = { missingRuntime, parseArgs, loadCreatorConfig, runLoop, main }

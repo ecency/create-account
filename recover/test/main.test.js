@@ -61,3 +61,14 @@ test('runLoop keeps polling until asked to stop', async () => {
   assert.equal(polls, 3)
   assert.deepEqual(sleeps, [7000, 7000])
 })
+
+test('missingRuntime: names what an old Node lacks', () => {
+  const { missingRuntime } = require('../main')
+  const ok = { fetch() {}, AbortSignal: { timeout() {} } }
+  assert.deepEqual(missingRuntime(ok), [])
+  assert.deepEqual(missingRuntime({ AbortSignal: { timeout() {} } }), ['fetch'])
+  assert.deepEqual(missingRuntime({ fetch() {}, AbortSignal: {} }), ['AbortSignal.timeout'])
+  assert.deepEqual(missingRuntime({ fetch() {} }), ['AbortSignal.timeout'])
+  assert.deepEqual(missingRuntime({}), ['fetch', 'AbortSignal.timeout'])
+  assert.deepEqual(missingRuntime(globalThis), [])
+})
