@@ -30,12 +30,12 @@ DRY_RUN=1
 | `RECOVERY_ACCOUNT` | if `config.js` lists more than one creator | Your creator account |
 | `RECOVERY_ACTIVE_WIF` | no | Active key used to sign; if unset, the key for `RECOVERY_ACCOUNT` in `config.js` is used |
 | `DRY_RUN` | no | `1` reads and logs decisions without broadcasting or reporting |
-| `ONBOARD_URL` | no | Default `https://api.ecency.com` |
+| `ONBOARD_URL` | no | Default `https://api.ecency.com`; must be https |
 | `HIVE_NODES` | no | Comma list of Hive API nodes |
-| `POLL_SECONDS` | no | Delay between passes in long running mode, default 15 |
+| `POLL_SECONDS` | no | Delay between passes in long running mode, default 15, at most 3600 |
 | `MAX_PER_HOUR` | no | Broadcast limit per hour of running |
 
-We recommend adding a dedicated extra key to your creator account's active authority for this and passing it as `RECOVERY_ACTIVE_WIF`, so you can revoke it on its own. The script checks at startup that the key can sign for the account. Start with `DRY_RUN=1`, check the log, then remove it.
+We recommend adding a dedicated extra key to your creator account's active authority for this and passing it as `RECOVERY_ACTIVE_WIF`, so you can revoke it on its own. The script checks at startup that the key can sign for the account. Requests for any other recovery account are skipped and logged as an error; if you see that, `RECOVERY_ACCOUNT` and the token do not belong together. Start with `DRY_RUN=1`, check the log, then remove it.
 
 Recommended: run it as a long running service.
 

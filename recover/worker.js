@@ -1,5 +1,5 @@
 'use strict'
-const { decideRow, buildRequestOp } = require('./rules')
+const { decideRow, buildRequestOp, pendingRequestMatches } = require('./rules')
 
 const MAX_BROADCAST_ATTEMPTS = 3
 const MAX_CHAIN_READ_FAILURES = 5
@@ -14,9 +14,26 @@ async function processRow(row, d) {
   const { config, chain, signer, onboard, cap, log } = d
   const ctx = { request_id: row && row.request_id, username: row && row.username }
 
-  let state
+  // A row of another recovery account is never read, signed or reported back: the
+  // token and RECOVERY_ACCOUNT disagree, and a report would fail someone else's request.
+  if (row.recovery_account !== config.recoveryAccount) {
+    log.error('pending row is for another recovery account, skipped; check RECOVERY_ACCOUNT and the token', {
+      ...ctx,
+      row_recovery_account: row.recovery_account,
+      configured_recovery_account: config.recoveryAccount,
+    })
+    return 'skipped'
+  }
+
+  // Malformed chain data that makes the rules throw counts as a failed read.
+  let decision
   try {
-    state = await chain.getState(row.username)
+    const state = await chain.getState(row.username)
+    decision = decideRow(row, state, {
+      recoveryAccount: config.recoveryAccount,
+      marginMs: config.marginMs,
+      capReached: cap.reached(),
+    })
     d.chainFailures.delete(row.request_id)
   } catch (e) {
     const n = (d.chainFailures.get(row.request_id) || 0) + 1
@@ -27,12 +44,6 @@ async function processRow(row, d) {
     return writeBack(row, { status: 'failed', error: 'chain_unavailable' }, 'failed', d, ctx)
   }
 
-  const decision = decideRow(row, state, {
-    recoveryAccount: config.recoveryAccount,
-    marginMs: config.marginMs,
-    capReached: cap.reached(),
-  })
-
   if (config.dryRun) {
     log.info('dry run decision', { ...ctx, decision: decision.action, error: decision.error, reason: decision.reason })
     return 'dry_run'
@@ -41,7 +52,11 @@ async function processRow(row, d) {
   let result
   let outcome
   if (decision.action === 'skip') {
-    log.error('hourly broadcast cap reached, leaving request approved', { ...ctx, cap: config.maxPerHour })
+    if (decision.reason === 'hourly_cap') {
+      log.error('hourly broadcast cap reached, leaving request approved', { ...ctx, cap: config.maxPerHour })
+    } else {
+      log.error('row skipped', { ...ctx, reason: decision.reason })
+    }
     return 'skipped'
   } else if (decision.action === 'fail') {
     log.info('re-check failed', { ...ctx, error: decision.error })
@@ -67,12 +82,30 @@ async function processRow(row, d) {
       log.error('broadcast failed', { ...ctx, attempt: n, err: errMsg(log, e) })
       if (n < MAX_BROADCAST_ATTEMPTS) return 'error'
       d.broadcastFailures.delete(row.request_id)
-      result = { status: 'failed', error: 'broadcast_error' }
-      outcome = 'failed'
+      if (await requestLanded(row, d, ctx)) {
+        result = { status: 'requested' }
+        outcome = 'requested'
+      } else {
+        result = { status: 'failed', error: 'broadcast_error' }
+        outcome = 'failed'
+      }
     }
   }
 
   return writeBack(row, result, outcome, d, ctx)
+}
+
+// After the last failed broadcast: one fresh read, in case the transaction landed anyway.
+async function requestLanded(row, d, ctx) {
+  try {
+    const state = await d.chain.getState(row.username)
+    const landed = pendingRequestMatches(state.pendingRequests, row.username, row.new_owner_pub)
+    if (landed) d.log.info('request found on chain after broadcast errors', ctx)
+    return landed
+  } catch (e) {
+    d.log.warn('chain re-read after broadcast errors failed', { ...ctx, err: errMsg(d.log, e) })
+    return false
+  }
 }
 
 async function writeBack(row, result, outcome, d, ctx) {
@@ -97,6 +130,10 @@ async function pollOnce(d) {
   let n = 0
   for (const row of rows) {
     if (d.shouldStop()) break
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      d.log.warn('skipping malformed pending entry', { type: Array.isArray(row) ? 'array' : row === null ? 'null' : typeof row })
+      continue
+    }
     await processRow(row, d)
     n++
   }

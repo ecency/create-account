@@ -42,6 +42,15 @@ test('errors carry the status but never the token', async () => {
   await assert.rejects(c2.getPending(), (e) => !e.message.includes('tok-secret'))
 })
 
+test('redirects are never followed, so the token goes nowhere else', async () => {
+  const f = fakeFetch([{ status: 302, body: {} }, { status: 301, body: {} }])
+  const c = createOnboardClient({ onboardUrl: 'http://on', workerToken: 'tok' }, f)
+  await assert.rejects(c.getPending(), /302/)
+  await assert.rejects(c.putResult('id-1', { status: 'failed' }), /301/)
+  assert.equal(f.calls.length, 2)
+  for (const call of f.calls) assert.equal(call.init.redirect, 'manual')
+})
+
 test('pending must be an array', async () => {
   const f = fakeFetch([{ status: 200, body: { error: 'x' } }])
   const c = createOnboardClient({ onboardUrl: 'http://on', workerToken: 'tok' }, f)

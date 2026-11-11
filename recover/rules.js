@@ -87,17 +87,11 @@ function findProvenKey(ownerHistory, provenPub, { headTimeMs, recoverTimeMs, mar
   return { ok: true, validUntilMs: latest + OWNER_HISTORY_WINDOW_MS }
 }
 
+// A pending request on chain is ours for this key only in exactly the shape we broadcast.
 function pendingRequestMatches(requests, username, newOwnerPub) {
-  return (requests || []).some((r) => {
-    const ka = r && r.new_owner_authority && r.new_owner_authority.key_auths
-    return (
-      r.account_to_recover === username &&
-      Array.isArray(ka) &&
-      ka.length === 1 &&
-      ka[0][0] === newOwnerPub &&
-      (r.new_owner_authority.account_auths || []).length === 0
-    )
-  })
+  return (requests || []).some(
+    (r) => !!r && r.account_to_recover === username && isOurRequestFor(r.new_owner_authority, newOwnerPub),
+  )
 }
 
 // Exactly the authority this signer broadcasts for a key: threshold 1, that key at
@@ -105,6 +99,7 @@ function pendingRequestMatches(requests, username, newOwnerPub) {
 function isOurRequestFor(authority, pub) {
   const ka = authority && authority.key_auths
   return (
+    !!authority &&
     authority.weight_threshold === 1 &&
     Array.isArray(authority.account_auths) &&
     authority.account_auths.length === 0 &&
@@ -132,9 +127,10 @@ function buildRequestOp(recoveryAccount, username, newOwnerPub) {
 // -> {action:'broadcast'} | {action:'already_requested'} | {action:'fail', error} | {action:'skip', reason}
 function decideRow(row, chain, { recoveryAccount, marginMs = DEFAULT_MARGIN_MS, capReached = false }) {
   const fail = (error) => ({ action: 'fail', error })
-  // onboard sends each worker only its own account's rows; check anyway.
+  // onboard sends each worker only its own account's rows; check anyway. Never
+  // reported back: the row may belong to another worker.
   if (!row || typeof row.recovery_account !== 'string' || row.recovery_account !== recoveryAccount) {
-    return fail('recovery_account_mismatch')
+    return { action: 'skip', reason: 'recovery_account_mismatch' }
   }
   if (!row || typeof row.username !== 'string' || !ACCOUNT_NAME_RE.test(row.username)) return fail('invalid_username')
   if (!isValidStmPublicKey(row.new_owner_pub)) return fail('invalid_new_owner_key')
@@ -157,12 +153,10 @@ function decideRow(row, chain, { recoveryAccount, marginMs = DEFAULT_MARGIN_MS, 
     return { action: 'already_requested' }
   }
   // Never overwrite a pending request this worker did not make for this user.
-  const ours = new Set(Array.isArray(row.other_new_owner_pubs) ? row.other_new_owner_pubs : [])
+  const ours = (Array.isArray(row.other_new_owner_pubs) ? row.other_new_owner_pubs : []).concat(replaces ? [replaces] : [])
   const foreign = (chain.pendingRequests || []).some((r) => {
     if (!r || r.account_to_recover !== row.username) return false
-    if (replaces && r.new_owner_authority && isOurRequestFor(r.new_owner_authority, replaces)) return false
-    const ka = (r.new_owner_authority && r.new_owner_authority.key_auths) || []
-    return !(ka.length === 1 && ours.has(ka[0][0]) && (r.new_owner_authority.account_auths || []).length === 0)
+    return !ours.some((pub) => isOurRequestFor(r.new_owner_authority, pub))
   })
   if (foreign) return fail('other_request_pending')
 

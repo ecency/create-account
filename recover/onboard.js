@@ -11,6 +11,8 @@ function createOnboardClient({ onboardUrl, workerToken }, fetchImpl = globalThis
       method,
       headers: { accept: 'application/json', 'X-Recovery-Token': workerToken },
       signal: AbortSignal.timeout(TIMEOUT_MS),
+      // Never follow a redirect: the token header would go along to wherever it points.
+      redirect: 'manual',
     }
     if (body) {
       init.headers['content-type'] = 'application/json'

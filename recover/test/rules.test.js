@@ -101,6 +101,45 @@ test('pendingRequestMatches: same account and exactly the new key', () => {
   assert.equal(rules.pendingRequestMatches([], 'alice', KEYS.newOwner), false)
 })
 
+// Shapes that carry our key but are not what this worker broadcasts.
+const otherShapes = (pub) => [
+  ['threshold 2', { weight_threshold: 2, account_auths: [], key_auths: [[pub, 2]] }],
+  ['weight 2', { weight_threshold: 1, account_auths: [], key_auths: [[pub, 2]] }],
+  ['account auth', { weight_threshold: 1, account_auths: [['bob', 1]], key_auths: [[pub, 1]] }],
+  ['no account_auths', { weight_threshold: 1, key_auths: [[pub, 1]] }],
+]
+const pendingWith = (auth) => [{ account_to_recover: 'alice', new_owner_authority: auth, expires: at(DAY) }]
+
+test('pendingRequestMatches: only the exact shape we broadcast counts', () => {
+  for (const [name, auth] of otherShapes(KEYS.newOwner)) {
+    assert.equal(rules.pendingRequestMatches(pendingWith(auth), 'alice', KEYS.newOwner), false, name)
+  }
+  for (const bad of [null, {}, { key_auths: [null] }, { weight_threshold: 1, account_auths: [], key_auths: [null] }]) {
+    assert.equal(rules.pendingRequestMatches(pendingWith(bad), 'alice', KEYS.newOwner), false, JSON.stringify(bad))
+  }
+})
+
+test('decideRow: a same-key request of another shape is foreign, never already requested', () => {
+  for (const [name, auth] of otherShapes(KEYS.newOwner)) {
+    assert.deepEqual(rules.decideRow(row(), chainState({ pendingRequests: pendingWith(auth) }), opts),
+      { action: 'fail', error: 'other_request_pending' }, name)
+  }
+})
+
+test('decideRow: other_new_owner_pubs only exempts the exact shape we broadcast', () => {
+  const r = row({ other_new_owner_pubs: [KEYS.other] })
+  assert.deepEqual(rules.decideRow(r, chainState({ pendingRequests: pendingWith(authority([KEYS.other])) }), opts),
+    { action: 'broadcast' })
+  for (const [name, auth] of otherShapes(KEYS.other)) {
+    assert.deepEqual(rules.decideRow(r, chainState({ pendingRequests: pendingWith(auth) }), opts),
+      { action: 'fail', error: 'other_request_pending' }, name)
+  }
+  for (const bad of [null, { key_auths: [null] }]) {
+    assert.deepEqual(rules.decideRow(r, chainState({ pendingRequests: pendingWith(bad) }), opts),
+      { action: 'fail', error: 'other_request_pending' }, JSON.stringify(bad))
+  }
+})
+
 test('buildRequestOp shape', () => {
   assert.deepEqual(rules.buildRequestOp('ecency', 'alice', KEYS.newOwner), [
     'request_account_recovery',
@@ -181,17 +220,17 @@ test('decideRow: malformed replaces_owner_pub fails the row', () => {
   assert.deepEqual(rules.decideRow(row({ replaces_owner_pub: null }), chainState(), opts), { action: 'broadcast' })
 })
 
-test('decideRow: a row for another recovery account fails before anything else', () => {
+test('decideRow: a row for another recovery account is skipped before anything else', () => {
   for (const ra of ['appreciator', 'Ecency', '', null, undefined, 42]) {
     assert.deepEqual(rules.decideRow(row({ recovery_account: ra }), chainState(), opts),
-      { action: 'fail', error: 'recovery_account_mismatch' }, String(ra))
+      { action: 'skip', reason: 'recovery_account_mismatch' }, String(ra))
   }
   // also when the chain still names us and the proof is fine
   assert.deepEqual(rules.decideRow(row({ recovery_account: 'appreciator' }), chainState(), { ...opts, capReached: true }),
-    { action: 'fail', error: 'recovery_account_mismatch' })
+    { action: 'skip', reason: 'recovery_account_mismatch' })
   // an unset configured account never matches a row without one
   assert.deepEqual(rules.decideRow(row({ recovery_account: undefined }), chainState(), { ...opts, recoveryAccount: undefined }),
-    { action: 'fail', error: 'recovery_account_mismatch' })
+    { action: 'skip', reason: 'recovery_account_mismatch' })
   // a partner worker accepts its own rows
   const partner = chainState({ account: { name: 'alice', recovery_account: 'appreciator', owner: authority([KEYS.current]) } })
   assert.deepEqual(rules.decideRow(row({ recovery_account: 'appreciator' }), partner, { ...opts, recoveryAccount: 'appreciator' }),

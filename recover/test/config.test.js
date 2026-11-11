@@ -85,6 +85,24 @@ test('RECOVERY_ACCOUNT falls back to the only creator in the creator config', ()
   assert.equal(loadConfig({ ...rest, RECOVERY_ACCOUNT: ' appreciator ', DRY_RUN: '1' }).recoveryAccount, 'appreciator')
 })
 
+test('ONBOARD_URL: http only for loopback and private addresses', () => {
+  for (const ok of ['http://127.0.0.1:8000', 'http://127.9.9.9', 'http://10.1.2.3', 'http://172.16.0.1',
+    'http://172.31.255.255:81/', 'http://192.168.1.1', 'http://[::1]:8080', 'http://[fd12:3456::1]', 'http://[fc00::1]',
+    'https://api.ecency.com', 'https://example.org/']) {
+    assert.doesNotThrow(() => loadConfig({ ...base, ONBOARD_URL: ok }), ok)
+  }
+  for (const bad of ['http://api.ecency.com', 'http://example.org', 'http://localhost', 'http://11.0.0.1',
+    'http://172.32.0.1', 'http://172.15.0.1', 'http://192.169.1.1', 'http://8.8.8.8', 'http://[fe80::1]',
+    'http://[2001:db8::1]', 'http://127.0.0.1.example.com', 'http://user:pw@127.0.0.1', 'ftp://127.0.0.1', 'https://']) {
+    assert.throws(() => loadConfig({ ...base, ONBOARD_URL: bad }), /ONBOARD_URL/, bad)
+  }
+})
+
+test('POLL_SECONDS is capped at an hour', () => {
+  assert.equal(loadConfig({ ...base, POLL_SECONDS: '3600' }).pollSeconds, 3600)
+  assert.throws(() => loadConfig({ ...base, POLL_SECONDS: '3601' }), /POLL_SECONDS/)
+})
+
 test('required values and numbers are validated', () => {
   assert.throws(() => loadConfig({ ...base, ONBOARD_URL: 'ftp://x' }), /ONBOARD_URL/)
   assert.throws(() => loadConfig({ ...base, RECOVERY_WORKER_TOKEN: '' }), /RECOVERY_WORKER_TOKEN/)

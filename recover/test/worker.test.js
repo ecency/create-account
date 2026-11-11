@@ -45,13 +45,85 @@ test('already requested on chain: reports requested without broadcasting', async
   assert.deepEqual(d.calls.put, [[row().request_id, { status: 'requested' }]])
 })
 
-test('a row for another recovery account is failed without broadcasting', async () => {
-  const d = deps()
+function recordingLog() {
+  const lines = []
+  const rec = (level) => (msg, f = {}) => lines.push({ level, msg, ...f })
+  return { lines, info: rec('info'), warn: rec('warn'), error: rec('error') }
+}
+
+test('a row for another recovery account is skipped: no write, no broadcast, an error log', async () => {
+  const log = recordingLog()
+  const d = deps({ log, config: { recoveryAccount: 'ecency', marginMs: 10 * MIN, dryRun: false, workerToken: 'tok-secret' } })
   const r = row({ recovery_account: 'appreciator' })
   const out = await processRow(r, d)
-  assert.equal(out, 'failed')
+  assert.equal(out, 'skipped')
   assert.equal(d.calls.broadcast.length, 0)
-  assert.deepEqual(d.calls.put, [[r.request_id, { status: 'failed', error: 'recovery_account_mismatch' }]])
+  assert.deepEqual(d.calls.put, [])
+  assert.deepEqual(d.calls.getState, [])
+  const err = log.lines.find((l) => l.level === 'error')
+  assert.equal(err.row_recovery_account, 'appreciator')
+  assert.equal(err.configured_recovery_account, 'ecency')
+  assert.ok(!JSON.stringify(log.lines).includes('tok-secret'))
+})
+
+test('pollOnce keeps going after a mismatched row', async () => {
+  const d = deps()
+  d.onboard.getPending = async () => [row({ recovery_account: 'appreciator', request_id: 'r-1' }), row({ request_id: 'r-2' })]
+  d.shouldStop = () => false
+  assert.equal(await pollOnce(d), 2)
+  assert.deepEqual(d.calls.put.map((p) => p[0]), ['r-2'])
+})
+
+test('final broadcast failure: a matching request found on re-read is reported requested', async () => {
+  let reads = 0
+  const landed = chainState({
+    pendingRequests: [{ account_to_recover: 'alice', new_owner_authority: authority([KEYS.newOwner]), expires: at(DAY) }],
+  })
+  const d = deps({
+    chain: { getState: async () => (++reads > 3 ? landed : chainState()) },
+    signer: { broadcast: async () => { throw new Error('timeout') } },
+  })
+  assert.equal(await processRow(row(), d), 'error')
+  assert.equal(await processRow(row(), d), 'error')
+  assert.equal(await processRow(row(), d), 'requested')
+  assert.equal(reads, 4)
+  assert.deepEqual(d.calls.put, [[row().request_id, { status: 'requested' }]])
+})
+
+test('final broadcast failure: no match or a failed re-read still fails the row', async () => {
+  for (const reread of [async () => chainState(), async () => { throw new Error('node down') }]) {
+    let reads = 0
+    const d = deps({
+      chain: { getState: async () => (++reads > 3 ? reread() : chainState()) },
+      signer: { broadcast: async () => { throw new Error('timeout') } },
+    })
+    await processRow(row(), d)
+    await processRow(row(), d)
+    assert.equal(await processRow(row(), d), 'failed')
+    assert.deepEqual(d.calls.put, [[row().request_id, { status: 'failed', error: 'broadcast_error' }]])
+  }
+})
+
+test('malformed chain data that makes the rules throw counts as a chain read failure', async () => {
+  const bad = chainState({
+    ownerHistory: [{ id: 1, account: 'alice', previous_owner_authority: { weight_threshold: 1, account_auths: [], key_auths: [null] }, last_valid_time: at(-DAY) }],
+  })
+  const d = deps({ chain: { getState: async () => bad } })
+  for (let i = 0; i < 4; i++) assert.equal(await processRow(row(), d), 'error')
+  assert.equal(d.calls.put.length, 0)
+  assert.equal(await processRow(row(), d), 'failed')
+  assert.deepEqual(d.calls.put, [[row().request_id, { status: 'failed', error: 'chain_unavailable' }]])
+  assert.equal(d.calls.broadcast.length, 0)
+})
+
+test('pollOnce skips null and non-object pending entries', async () => {
+  const log = recordingLog()
+  const d = deps({ log })
+  d.onboard.getPending = async () => [null, 'x', 7, [row()], row({ request_id: 'r-ok' })]
+  d.shouldStop = () => false
+  assert.equal(await pollOnce(d), 1)
+  assert.deepEqual(d.calls.put.map((p) => p[0]), ['r-ok'])
+  assert.equal(log.lines.filter((l) => l.msg === 'skipping malformed pending entry').length, 4)
 })
 
 test('rule failure reports failed with a short code', async () => {
